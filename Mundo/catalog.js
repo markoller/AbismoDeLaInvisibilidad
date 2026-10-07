@@ -21,6 +21,13 @@ export const ASSET_CATALOG = [
         avoid: {barco: 25},
     },
     {
+        id: 'selfies', placeholder: 'selfies',
+        models: ['pez_abis.glb', 'pez_asal.glb'],
+        spacing: 220, density: 0.10, size: [30, 55], sink: 0.10,
+        heightRange: [0, 0.40], maxSlope: 0.5, flat: 0.3,
+        avoid: {barco: 25},
+    },
+    {
         id: 'piedra', placeholder: 'piedra',
         models: ['pez_absal.glb', 'pez_abisl.glb', 'pez_abisal.glb'],
         spacing: 12, density: 0.40, size: [1.5, 6], sink: 0.25,
