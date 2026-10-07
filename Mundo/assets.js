@@ -47,6 +47,11 @@ export const assets = (function() {
         g.add(_mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.6, 6), 0x3b3128, 0.1, 0.5, 0));
         return g;
         },
+        selfies: () => {
+        const g = new THREE.Group();
+        g.add(_mesh(new THREE.BoxGeometry(1.0, 30, 20), 0x5a4a3a, 0, 0.125, 0));
+        return g;
+        },
     };
 
     function _BuildEntry(root) {
