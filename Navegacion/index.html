@@ -3,9 +3,25 @@
   <head>
     <meta charset="utf-8">
     <title>My first three.js app</title>
+    
     <style>
-      body { margin: 0; }
-    </style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    #joystickZona {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 40vw;
+      height: 40vh;
+      z-index: 10;
+      touch-action: none;
+    }
+  </style>
+
     <script type="importmap">
 {
   "imports": {
@@ -14,8 +30,11 @@
   }
 }
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.10.1/nipplejs.min.js"></script>
   </head>
   <body>
+    <div id="joystickZona"></div>
+
     <script type="module" src="main.js"></script>
   </body>
 </html>
