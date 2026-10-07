@@ -51,6 +51,29 @@ export const scatter = (function() {
     
         const root = new THREE.Group();
         root.matrixAutoUpdate = false;          
+
+        if (rec.cat.images) {
+            const entry = this._library.Get(rec.cat.id, 0);
+            const part = entry.parts[0];
+            for (const pl of rec.placements) {
+            const key = Math.round(pl.x) + '_' + Math.round(pl.z);
+            const mesh = new THREE.Mesh(part.geometry, this._library.GetImageMaterial(rec.cat, key));
+            const s = pl.size / entry.baseSize;
+            _p.set(pl.x, pl.y - (rec.cat.sink || 0) * pl.size, pl.z);
+            _q.setFromAxisAngle(_UP, pl.rot);
+            _s.set(s, s, s);
+            _m.compose(_p, _q, _s);
+            _inst.multiplyMatrices(_m, part.localMatrix);
+            _inst.decompose(mesh.position, mesh.quaternion, mesh.scale);
+            root.add(mesh);
+            }
+            if (root.children.length > 0) {
+            this._scene.add(root);
+            }
+            rec.group = root;
+            return;
+        }
+
         for (const [variant, list] of byVariant) {
             const entry = this._library.Get(rec.cat.id, variant);
             for (const part of entry.parts) {
@@ -80,7 +103,7 @@ export const scatter = (function() {
         if (rec.group) {
             this._scene.remove(rec.group);
             
-            rec.group.children.forEach((m) => m.dispose());
+            rec.group.children.forEach((m) => { if (m.dispose) m.dispose(); });
             rec.group = null;
         }
         }

@@ -68,9 +68,9 @@ export const graphics = (function() {
         }
 
         _CreateLights() {
-        this._scene.add(new THREE.HemisphereLight(0xcfe6ff, 0x4a4a3a, 0.8));
+        this._scene.add(new THREE.HemisphereLight(0x6fb8d6, 0x0a1a22, 0.8));
 
-        const light = new THREE.DirectionalLight(0xffffff, 0.9);
+        const light = new THREE.DirectionalLight(0x8fd0e8, 0.9);
         light.position.set(-300, 500, -200);
         light.castShadow = false;
         this._scene.add(light);

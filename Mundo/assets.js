@@ -29,6 +29,11 @@ export const assets = (function() {
         g.add(_mesh(geo, 0x6b6f73));
         return g;
         },
+        coral: () => {
+        const g = new THREE.Group();
+        g.add(_mesh(new THREE.ConeGeometry(0.12, 1.0, 5), '#B73E27', 0, 0.5, 0));
+        return g;
+        },
         huesos: () => {
         const g = new THREE.Group();
         const rib = new THREE.CapsuleGeometry(0.05, 0.9, 4, 8);
@@ -47,9 +52,11 @@ export const assets = (function() {
         g.add(_mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.6, 6), 0x3b3128, 0.1, 0.5, 0));
         return g;
         },
-        selfies: () => {
+        selfies: (aspect = 0.75) => {
         const g = new THREE.Group();
-        g.add(_mesh(new THREE.BoxGeometry(1.0, 30, 20), 0x5a4a3a, 0, 0.125, 0));
+        const geo = new THREE.PlaneGeometry(aspect, 1);
+        geo.translate(0, 0.5, 0);
+        g.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial()));
         return g;
         },
     };
@@ -81,12 +88,16 @@ export const assets = (function() {
         this._catalog = catalog;
         this._entries = {};
         this._loader = new GLTFLoader();
+        this._texLoader = new THREE.TextureLoader();
+        this._texLoader.setCrossOrigin('anonymous');
+        this._imageMats = new Map();     
         this.version = 0;
 
         for (const cat of catalog) {
             const n = Math.max(1, cat.models.length);
             for (let v = 0; v < n; v++) {
-            this._entries[cat.id + '|' + v] = _BuildEntry((_PLACEHOLDERS[cat.placeholder] || _PLACEHOLDERS.piedra)());
+            const make = _PLACEHOLDERS[cat.placeholder] || _PLACEHOLDERS.piedra;
+            this._entries[cat.id + '|' + v] = _BuildEntry(make(cat.images ? cat.images.aspect : undefined));
             }
         }
         }
@@ -108,6 +119,42 @@ export const assets = (function() {
 
         Get(catId, variant) {
         return this._entries[catId + '|' + variant];
+        }
+
+        GetImageMaterial(cat, key) {
+        const id = cat.id + '|' + key;
+        let mat = this._imageMats.get(id);
+        if (!mat) {
+            mat = new THREE.MeshBasicMaterial({color: 0x888888, side: THREE.DoubleSide});
+            this._imageMats.set(id, mat);
+            this._LoadImage(cat, mat);
+        }
+        return mat;
+        }
+
+        async _LoadImage(cat, mat) {
+        const aspect = cat.images.aspect;
+        try {
+            const url = await cat.images.source();
+            const tex = await this._texLoader.loadAsync(url);
+            tex.colorSpace = THREE.SRGBColorSpace;
+
+            const ia = tex.image.width / tex.image.height;
+            if (ia > aspect) {
+            tex.repeat.set(aspect / ia, 1);
+            tex.offset.set((1 - aspect / ia) / 2, 0);
+            } else {
+            tex.repeat.set(1, ia / aspect);
+            tex.offset.set(0, (1 - ia / aspect) / 2);
+            }
+
+            mat.map = tex;
+            mat.color.set(0xffffff);
+            mat.needsUpdate = true;
+        } catch (e) {
+            mat.color.set(0xff00ff);       // magenta = fallo la carga de la imagen
+            console.error('[assets] no se pudo cargar la imagen de ' + cat.id, e);
+        }
         }
     }
 

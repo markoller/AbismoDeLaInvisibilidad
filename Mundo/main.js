@@ -23,8 +23,8 @@ const _CONFIG = {
     buildBudgetMs: _IS_MOBILE ? 4 : 8,     
     propRadius: _IS_MOBILE ? 3 : 4,
     propBudgetMs: _IS_MOBILE ? 3 : 4,
-    autoFlySpeed: 60,                      
-    skyColour: 0x9ec5e8,
+    autoFlySpeed: 30,                      
+    skyColour: 0x0b3a52,
 };
 
 function _GetSeed() {
@@ -56,7 +56,7 @@ const _NOISE_PARAMS = {
 
 //Chunk
 
-const _ROCK = new THREE.Color(0x7a7266);
+const _ROCK = new THREE.Color(0x2f3a40);
 
 class TerrainChunk {
     constructor(params) {
@@ -170,11 +170,11 @@ class TerrainChunk {
         // Colores
         const _colourLerp = (t, p0, p1) => p0.clone().lerp(p1, t);
         this._colourSpline = new spline.LinearSpline(_colourLerp);
-        this._colourSpline.AddPoint(0.00, new THREE.Color(0xc9b87a));  // playa
-        this._colourSpline.AddPoint(0.06, new THREE.Color(0x4f9f0f));  // pasto
-        this._colourSpline.AddPoint(0.30, new THREE.Color(0x2b6a14));  // bosque
-        this._colourSpline.AddPoint(0.55, new THREE.Color(0x7a7266));  // roca
-        this._colourSpline.AddPoint(0.75, new THREE.Color(0xffffff));  // nieve
+        this._colourSpline.AddPoint(0.00, new THREE.Color(0x3b4a45));  // fondo
+        this._colourSpline.AddPoint(0.06, new THREE.Color(0x4f6b62));  // sedimento
+        this._colourSpline.AddPoint(0.30, new THREE.Color(0x2c4a52));  // medio
+        this._colourSpline.AddPoint(0.55, new THREE.Color(0x33414a));  // roca oscura
+        this._colourSpline.AddPoint(0.75, new THREE.Color(0x5a6b73));  // punta más alta
 
         this._material = new THREE.MeshStandardMaterial({
         color: 0xFFFFFF,
@@ -186,7 +186,7 @@ class TerrainChunk {
         // Niebla: esconde el borde donde aparecen los chunks nuevos
         const far = _CONFIG.viewRadius * size * 0.95;
         this._scene.background = new THREE.Color(_CONFIG.skyColour);
-        this._scene.fog = new THREE.Fog(_CONFIG.skyColour, far * 0.35, far);
+        this._scene.fog = new THREE.Fog(_CONFIG.skyColour, far * 0.05, far * 0.7);
         this._camera.far = far * 1.5;
         this._camera.updateProjectionMatrix();
 
