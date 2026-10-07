@@ -2,7 +2,7 @@ import {math} from './math.js';
 
 export const noise = (function() {
 
-  // PRNG con semilla (mulberry32): mismo seed => mismo mundo.
+  // PRNG con semilla (mulberry32)
     function _Mulberry32(a) {
         return function() {
         a |= 0; a = a + 0x6D2B79F5 | 0;
@@ -12,7 +12,7 @@ export const noise = (function() {
         };
     }
 
-    // Perlin Noise 2D clasico (Ken Perlin) con tabla de permutacion barajada por seed.
+    // Perlin Noise 2D 
     class _Perlin {
         constructor(seed) {
         const rand = _Mulberry32(seed);
@@ -66,7 +66,7 @@ export const noise = (function() {
         }
     }
 
-    // fBm: suma de octavas de Perlin. Misma interfaz que el original: Get(x, y) -> altura.
+    // Suma de octavas de Perlin.
     class _NoiseGenerator {
         constructor(params) {
         this._params = params;
@@ -90,7 +90,6 @@ export const noise = (function() {
             frequency *= this._params.lacunarity;
         }
         total /= normalization;
-        // 'contrast' estira el rango para tener valles y montañas mas marcados.
         total = math.sat((total - 0.5) * this._params.contrast + 0.5);
         return Math.pow(
             total, this._params.exponentiation) * this._params.height;

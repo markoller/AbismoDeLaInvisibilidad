@@ -5,6 +5,10 @@ import {math} from './math.js';
 import {noise} from './noise.js';
 import {spline} from './spline.js';
 
+import {assets} from './assets.js';
+import {scatter} from './scatter.js';
+import {ASSET_CATALOG} from './catalog.js';
+
 let _APP = null;
 
 //Configuraciones
@@ -16,8 +20,10 @@ const _CONFIG = {
     chunkSize: 256,                        
     segments: _IS_MOBILE ? 32 : 64,        
     viewRadius: _IS_MOBILE ? 4 : 6,        
-    buildBudgetMs: _IS_MOBILE ? 4 : 8,     // ms maximos por frame generando chunks
-    autoFlySpeed: 60,                      // unidades/seg; 0 para desactivar
+    buildBudgetMs: _IS_MOBILE ? 4 : 8,     
+    propRadius: _IS_MOBILE ? 3 : 4,
+    propBudgetMs: _IS_MOBILE ? 3 : 4,
+    autoFlySpeed: 60,                      
     skyColour: 0x9ec5e8,
 };
 
@@ -140,7 +146,7 @@ class TerrainChunk {
 
     Destroy() {
         this._params.scene.remove(this._mesh);
-        this._mesh.geometry.dispose();   // el material es compartido: no se libera aca
+        this._mesh.geometry.dispose();  
     }
 }
 
@@ -150,6 +156,7 @@ class TerrainChunk {
     constructor(params) {
         this._scene = params.scene;
         this._camera = params.camera;
+        this._focus = params.focus || null;
         this._Init();
     }
 
@@ -171,7 +178,7 @@ class TerrainChunk {
 
         this._material = new THREE.MeshStandardMaterial({
         color: 0xFFFFFF,
-        vertexColors: THREE.VertexColors,
+        vertexColors: true,
         roughness: 1.0,
         metalness: 0.0,
         });
@@ -187,6 +194,21 @@ class TerrainChunk {
         this._pending = [];
         this._cx = null;
         this._cz = null;
+
+        //Assets: biblioteca de modelos y generador de obejtos
+        this._library = new assets.AssetLibrary(ASSET_CATALOG);
+        this._library.Load();
+        this._props = new scatter.PropScatter({
+            scene: this._scene,
+            library: this._library,
+            catalog: ASSET_CATALOG,
+            seed: _NOISE_PARAMS.seed,
+            heightAt: (x, z) => this._generator.Get(x, z),
+            heightMax: _NOISE_PARAMS.height,
+            chunkSize: _CONFIG.chunkSize,
+            radius: _CONFIG.propRadius,
+            budgetMs: _CONFIG.propBudgetMs,
+        });
     }
 
     _Key(x, z) {
@@ -239,19 +261,22 @@ class TerrainChunk {
         const cx = Math.floor(p.x / _CONFIG.chunkSize);
         const cz = Math.floor(p.z / _CONFIG.chunkSize);
         if (cx !== this._cx || cz !== this._cz) {
-        this._cx = cx;
-        this._cz = cz;
-        this._Refresh();
+            this._cx = cx;
+            this._cz = cz;
+            this._Refresh();
         }
 
         const start = performance.now();
         while (this._pending.length > 0) {
-        const next = this._pending.pop();
-        this._AddChunk(next.cx, next.cz);
-        if (performance.now() - start > _CONFIG.buildBudgetMs) {
-            break;
+            const next = this._pending.pop();
+            this._AddChunk(next.cx, next.cz);
+            if (performance.now() - start > _CONFIG.buildBudgetMs) {
+                break;
+            }
         }
-        }
+
+        const f = this._focus ? this._focus() : p;
+        this._props.Update(Math.floor(f.x / _CONFIG.chunkSize), Math.floor(f.z / _CONFIG.chunkSize));
     }
 }
 
@@ -268,6 +293,7 @@ class TerrainChunk {
         this._entities['_terrain'] = new TerrainChunkManager({
         scene: this._graphics.Scene,
         camera: this._graphics.Camera,
+        focus: () => this._controls.target,
         });
     }
 
