@@ -23,7 +23,7 @@ const _CONFIG = {
     buildBudgetMs: _IS_MOBILE ? 4 : 8,     
     propRadius: _IS_MOBILE ? 3 : 4,
     propBudgetMs: _IS_MOBILE ? 3 : 4,
-    autoFlySpeed: 30,                      
+    autoFlySpeed: 50,                      
     skyColour: 0x0b3a52,
 };
 
