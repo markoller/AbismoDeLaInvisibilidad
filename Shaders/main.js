@@ -6,6 +6,8 @@ import * as THREE from "three";
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 //import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
+import {Modelo} from './cargar-modelo.js';
+
 //Renderer de WebGL
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -54,42 +56,8 @@ sunlight.shadow.camera.far = 1000;
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.update();
 
-const vertex_shader = "uniform vec3 viewVector;uniform float c;uniform float p;varying float intensity;void main() {    vec3 vNormal = normalize( normalMatrix * normal );	vec3 vNormel = normalize( normalMatrix * viewVector );	intensity = pow( c - dot(vNormal, vNormel), p );	    gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );}"
-
-const fragment_shader = "uniform vec3 glowColor;varying float intensity;void main() {vec3 glow = glowColor * intensity;gl_FragColor = vec4( glow, 1.0 );}"
-
-//A ver si andan los materials bien
-var customMaterial = new THREE.ShaderMaterial( 
-	{
-	    uniforms: 
-		{ 
-			"c":   { type: "f", value: 0.5 },
-			"p":   { type: "f", value: 0.4 },
-			glowColor: { type: "c", value: new THREE.Color(0x1722D9) },
-			viewVector: { type: "v3", value: camera.position }
-		},
-		vertexShader:   vertex_shader,
-		fragmentShader: fragment_shader,
-		side: THREE.FrontSide,
-		blending: THREE.AdditiveBlending,
-		transparent: true
-	}   );
-
-//Cargo el modelo y lo agrego a la escena
-const loader = new GLTFLoader();
-loader.load('Modelos/pez_abisal_luz.glb', function(gltf) {
-    //Aca preparamos el modelo para agregarlo a la escena
-    var modelo = gltf.scene;
-    modelo.traverse((obj) =>{
-        if(obj instanceof THREE.Mesh){
-            obj.material = customMaterial.clone();
-        }
-    })
-
-    scene.add(modelo);
-}, undefined, function(error) {
-    console.error(error);
-});
+var modelo = new Modelo();
+await modelo.init('../Modelos/pez_abisal.glb',scene,camera);
 
 //Modelo del piso
 var piso = new THREE.Mesh(new THREE.PlaneGeometry(1000,1000,10,10), new THREE.MeshStandardMaterial);
@@ -98,31 +66,16 @@ piso.receiveShadow = true;
 piso.castShadow = true;
 scene.add(piso);
 
-//Este es el modelo que va a llevar la textura y el shader normal
-loader.load('Modelos/pez_abisal_luz.glb', function(gltf) {
-    //Aca preparamos el modelo para agregarlo a la escena
-    var modelo = gltf.scene;
-    modelo.scale.set(0.99,0.99,0.99);
-    modelo.castShadow = true;
-    modelo.receiveShadow = true;
-    modelo.traverse((obj) =>{
-        if(obj instanceof THREE.Mesh){
-            //obj.material = new THREE.MeshStandardMaterial;
-        }
-    })
-    scene.add(modelo);
-}, undefined, function(error) {
-    console.error(error);
-});
-
-
-
 function animate() {
     requestAnimationFrame(animate);
     controls.update();
     renderer.render(scene, camera);
+    modelo.update();
+    //modelo.modelo_outline.material.uniforms.uTime.value = Math.random();
 }
 
 document.body.appendChild(renderer.domElement);
 
 animate();
+
+
