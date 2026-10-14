@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const escena = new THREE.Scene();
 const camara = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -9,15 +10,10 @@ const renderer = new THREE.WebGLRenderer({alpha: true});
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-const geometria = new THREE.BoxGeometry();
-const material = new THREE.MeshBasicMaterial({ color: 'rgb(113, 119, 243)' });
-const cubo = new THREE.Mesh(geometria, material);
-
+let modeloPez = null;
 let adelante = 0;
 let atras = 0;
-let posicionPersonaje = new THREE.Vector3();
 
-escena.add(cubo);
 escena.add(gridHelper);
 
 camara.position.z = 5;
@@ -31,34 +27,57 @@ controls.dampingFactor = 0.1;
 controls.maxPolarAngle = Math.PI / 3;
 controls.minPolarAngle = Math.PI / 3;
 
+const loader = new GLTFLoader();
+loader.load(
+    '../Modelos/pez_abisal.glb',
+    function (gltf) {
+        modeloPez = gltf.scene;
+        escena.add(modeloPez);
+    },
+    undefined,
+    function (error) {
+        console.error('Error al cargar el modelo:', error);
+    }
+);
+
 animacion();
 joystick();
 
 function animacion() {
     updatePersonaje();
 
-    camara.position.sub(controls.target);
-    controls.target.copy(cubo.position);
-    camara.position.add(controls.target);
+    if (modeloPez) {
+        camara.position.sub(controls.target);
+        controls.target.copy(modeloPez.position);
+        camara.position.add(controls.target);
+    }
 
     requestAnimationFrame(animacion);
     controls.update();
-
     renderer.render(escena, camara);
 }
 
 function updatePersonaje() {
-  const angulo = controls.getAzimuthalAngle();
+    if (!modeloPez) return;
+
+    const velocidad = 0.1;
+    const direccion = new THREE.Vector3();
+
+    camara.getWorldDirection(direccion);
+    direccion.y = 0;
+    direccion.normalize();
 
     if (adelante > 0) {
-    cubo.position.z -= adelante * 0.1;
+        modeloPez.position.addScaledVector(direccion, adelante * velocidad);
+        modeloPez.lookAt(modeloPez.position.clone().add(direccion));
     }
 
     if (atras > 0) {
-    cubo.position.z += atras * 0.1;
-  }
+        modeloPez.position.addScaledVector(direccion, -atras * velocidad);
+        modeloPez.lookAt(modeloPez.position.clone().sub(direccion));
+    }
 
-  cubo.updateMatrixWorld();
+    modeloPez.updateMatrixWorld();
 }
 
 function joystick() {
@@ -68,7 +87,7 @@ function joystick() {
         size: 100,
         lockY: true,
         color: "red",
-        }
+    }
 
     const joyManager = nipplejs.create(options);
 
@@ -85,7 +104,7 @@ function joystick() {
         }
 
         if (data.instance && data.instance.ui) {
-        data.instance.ui.el.style.opacity = "0";
+            data.instance.ui.el.style.opacity = "0";
         }
     });
 
