@@ -23,7 +23,7 @@ const _CONFIG = {
     buildBudgetMs: _IS_MOBILE ? 4 : 8,     
     propRadius: _IS_MOBILE ? 3 : 4,
     propBudgetMs: _IS_MOBILE ? 3 : 4,
-    autoFlySpeed: 50,                      
+    autoFlySpeed: 0,                      
     skyColour: 0x0b3a52,
 };
 
@@ -186,7 +186,7 @@ class TerrainChunk {
         // Niebla: esconde el borde donde aparecen los chunks nuevos
         const far = _CONFIG.viewRadius * size * 0.95;
         this._scene.background = new THREE.Color(_CONFIG.skyColour);
-        this._scene.fog = new THREE.Fog(_CONFIG.skyColour, far * 0.05, far * 0.7);
+        this._scene.fog = new THREE.Fog(_CONFIG.skyColour, far * 0.10, far * 0.9);
         this._camera.far = far * 1.5;
         this._camera.updateProjectionMatrix();
 
