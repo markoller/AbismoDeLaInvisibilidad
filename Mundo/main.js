@@ -23,8 +23,16 @@ const _CONFIG = {
     buildBudgetMs: _IS_MOBILE ? 4 : 8,     
     propRadius: _IS_MOBILE ? 3 : 4,
     propBudgetMs: _IS_MOBILE ? 3 : 4,
-    autoFlySpeed: 0,                      
-    skyColour: 0x0b3a52,
+    autoFlySpeed: 60,     
+    
+    ground: {  //cámara pegada al fondo
+        lookHeight: 40,
+        minClearance: 25,
+        follow: 2.0,
+        lookAhead: [40, 90],
+    },     
+    
+    skyColour: "#0B1D3B",
 };
 
 function _GetSeed() {
@@ -170,11 +178,11 @@ class TerrainChunk {
         // Colores
         const _colourLerp = (t, p0, p1) => p0.clone().lerp(p1, t);
         this._colourSpline = new spline.LinearSpline(_colourLerp);
-        this._colourSpline.AddPoint(0.00, new THREE.Color(0x3b4a45));  // fondo
-        this._colourSpline.AddPoint(0.06, new THREE.Color(0x4f6b62));  // sedimento
-        this._colourSpline.AddPoint(0.30, new THREE.Color(0x2c4a52));  // medio
-        this._colourSpline.AddPoint(0.55, new THREE.Color(0x33414a));  // roca oscura
-        this._colourSpline.AddPoint(0.75, new THREE.Color(0x5a6b73));  // punta más alta
+        this._colourSpline.AddPoint(0.00, new THREE.Color("#273238"));  // fondo
+        this._colourSpline.AddPoint(0.06, new THREE.Color("#2E3431"));  // sedimento
+        this._colourSpline.AddPoint(0.30, new THREE.Color("#253D44"));  // medio
+        this._colourSpline.AddPoint(0.55, new THREE.Color("#2F3F3A"));  // roca oscura
+        this._colourSpline.AddPoint(0.75, new THREE.Color("#3F4B51"));  // punta más alta
 
         this._material = new THREE.MeshStandardMaterial({
         color: 0xFFFFFF,
@@ -186,7 +194,7 @@ class TerrainChunk {
         // Niebla: esconde el borde donde aparecen los chunks nuevos
         const far = _CONFIG.viewRadius * size * 0.95;
         this._scene.background = new THREE.Color(_CONFIG.skyColour);
-        this._scene.fog = new THREE.Fog(_CONFIG.skyColour, far * 0.10, far * 0.9);
+        this._scene.fog = new THREE.Fog(_CONFIG.skyColour, far * 0.05, far * 0.3);
         this._camera.far = far * 1.5;
         this._camera.updateProjectionMatrix();
 
@@ -256,6 +264,10 @@ class TerrainChunk {
         this._chunks[this._Key(cx, cz)] = {chunk: chunk, cx: cx, cz: cz};
     }
 
+    HeightAt(x, z) {
+        return this._generator.Get(x, z);
+    }
+
     Update(timeInSeconds) {
         const p = this._camera.position;
         const cx = Math.floor(p.x / _CONFIG.chunkSize);
@@ -301,12 +313,14 @@ class TerrainChunk {
         const controls = new OrbitControls(
             this._graphics._camera, this._graphics._threejs.domElement);
         controls.target.set(0, 60, 0);
-        controls.object.position.set(0, 380, 600);
-        controls.screenSpacePanning = false;        // el paneo se mueve sobre el suelo
+        controls.object.position.set(0, 0, 200);
+        controls.screenSpacePanning = false;    
+        controls.minPolarAngle = Math.PI * 0.30;    // el paneo se mueve sobre el suelo
         controls.maxPolarAngle = Math.PI * 0.49;    // no pasar por debajo del horizonte
         controls.minDistance = 50;
-        controls.maxDistance = 1200;
+        controls.maxDistance = 400;
         controls.update();
+        this._groundY = null;
 
         // El vuelo automatico se pausa mientras el usuario toca/arrastra
         this._interacting = false;
@@ -326,6 +340,42 @@ class TerrainChunk {
             this._controls.object.position.add(dir);
             this._controls.target.add(dir);
         }
+        }
+        this._controls.update();
+        this._KeepNearGround(timeInSeconds);
+    }
+
+    //Mantiene la cámara a una altura constante sobre el suelo
+    _KeepNearGround(dt) {
+        const G = _CONFIG.ground;
+        const terrain = this._entities['_terrain'];
+        const cam = this._controls.object.position;
+        const tgt = this._controls.target;
+
+        let ground = terrain.HeightAt(tgt.x, tgt.z);
+        const dx = tgt.x - cam.x, dz = tgt.z - cam.z;
+        const len = Math.hypot(dx, dz);
+        if (len > 1e-6) {
+        for (const d of G.lookAhead) {
+            ground = Math.max(ground, terrain.HeightAt(tgt.x + dx / len * d, tgt.z + dz / len * d));
+        }
+        }
+
+        if(this._groundY === null) {
+            this._groundY = ground;
+        } else {
+            this._groundY += (ground - this._groundY) * (1 - Math.exp(-G.follow * dt));
+        }
+
+        const dy = (this._groundY + G.lookHeight) - tgt.y;
+        cam.y += dy;
+        tgt.y += dy;
+
+        const floor = terrain.HeightAt(cam.x, cam.z) + G.minClearance;
+        if (cam.y < floor) {
+            const up = floor - cam.y;
+            cam.y += up;
+            tgt.y += up;
         }
         this._controls.update();
     }

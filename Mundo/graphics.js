@@ -52,7 +52,7 @@ export const graphics = (function() {
             this._OnWindowResize();
         }, false);
 
-        const fov = 60;
+        const fov = 45;
         const aspect = window.innerWidth / window.innerHeight;
         const near = 1;
         const far = 10000.0;
