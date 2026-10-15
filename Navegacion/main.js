@@ -53,6 +53,14 @@ loader.load(
 animacion();
 joystick();
 
+setTimeout(() => {
+    const zonaJoystick = document.getElementById("joystickZona");
+    if (zonaJoystick) {
+        zonaJoystick.style.transition = "opacity 1s ease";
+        zonaJoystick.style.opacity = "0";
+    }
+}, 15000);
+
 function animacion() {
     updatePersonaje();
 
@@ -98,8 +106,9 @@ function updatePersonaje() {
 function joystick() {
     const options = {
         zone: document.getElementById("joystickZona"),
-        mode: "semi",
-        size: 100,
+        mode: "static",
+        position: { left: '50%', bottom: '60%' },
+        size: 125,
         lockY: true,
         color: "red",
     }
@@ -113,10 +122,6 @@ function joystick() {
             adelante = Math.abs(movAdelante);
         } else {
             adelante = 0;
-        }
-
-        if (data.instance && data.instance.ui) {
-            data.instance.ui.el.style.opacity = "0";
         }
     });
 
