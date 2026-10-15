@@ -12,20 +12,30 @@ document.body.appendChild(renderer.domElement);
 
 let modeloPez = null;
 let adelante = 0;
-let atras = 0;
+
+let teclaAdelante = false;
 
 escena.add(gridHelper);
 
-camara.position.z = 5;
-camara.position.y = 2;
+camara.position.set(0, 5, 10);
 
 const controls = new OrbitControls(camara, renderer.domElement);
-controls.minDistance = 3;
-controls.maxDistance = 10;
+controls.minDistance = 5;
+controls.maxDistance = 12;
 controls.enableDamping = true;
 controls.dampingFactor = 0.1;
 controls.maxPolarAngle = Math.PI / 3;
 controls.minPolarAngle = Math.PI / 3;
+
+controls.update();
+
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') teclaAdelante = true;
+});
+
+window.addEventListener('keyup', (e) => {
+    if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') teclaAdelante = false;
+});
 
 const loader = new GLTFLoader();
 loader.load(
@@ -67,14 +77,19 @@ function updatePersonaje() {
     direccion.y = 0;
     direccion.normalize();
 
-    if (adelante > 0) {
-        modeloPez.position.addScaledVector(direccion, adelante * velocidad);
-        modeloPez.lookAt(modeloPez.position.clone().add(direccion));
-    }
+    //rotacion
+    const rotacionActual = modeloPez.quaternion.clone();
+    const objetivoMirada = modeloPez.position.clone().add(direccion);
+    modeloPez.lookAt(objetivoMirada);
+    const rotacionObjetivo = modeloPez.quaternion.clone();
+    modeloPez.quaternion.copy(rotacionActual);
+    const suavizadoRotacion = 0.1; 
+    modeloPez.quaternion.slerp(rotacionObjetivo, suavizadoRotacion);
 
-    if (atras > 0) {
-        modeloPez.position.addScaledVector(direccion, -atras * velocidad);
-        modeloPez.lookAt(modeloPez.position.clone().sub(direccion));
+    //movimiento
+    if (adelante > 0 || teclaAdelante) {
+        const factor = adelante > 0 ? adelante : 1;
+        modeloPez.position.addScaledVector(direccion, factor * velocidad);
     }
 
     modeloPez.updateMatrixWorld();
@@ -94,13 +109,10 @@ function joystick() {
     joyManager.on("move", function(evt, data) {
         const movAdelante = data.vector.y;
 
-        if (movAdelante > 0){
+        if (movAdelante > 0) {
             adelante = Math.abs(movAdelante);
-            atras = 0;
-        }
-        else if (movAdelante < 0 ){
+        } else {
             adelante = 0;
-            atras = Math.abs(movAdelante);
         }
 
         if (data.instance && data.instance.ui) {
@@ -108,8 +120,7 @@ function joystick() {
         }
     });
 
-    joyManager.on("end", function(evt){
+    joyManager.on("end", function(evt) {
         adelante = 0;
-        atras = 0;
     });
 }
