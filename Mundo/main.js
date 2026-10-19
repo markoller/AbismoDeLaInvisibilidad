@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {game} from './game.js';
 import {math} from './math.js';
 import {noise} from './noise.js';
@@ -17,20 +18,12 @@ const _IS_MOBILE = window.matchMedia('(pointer: coarse)').matches ||
     Math.min(window.innerWidth, window.innerHeight) < 600;
 
 const _CONFIG = {
-    chunkSize: 256,                        
+    chunkSize: 256,                                    
     segments: _IS_MOBILE ? 32 : 64,        
     viewRadius: _IS_MOBILE ? 4 : 6,        
     buildBudgetMs: _IS_MOBILE ? 4 : 8,     
     propRadius: _IS_MOBILE ? 3 : 4,
     propBudgetMs: _IS_MOBILE ? 3 : 4,
-    autoFlySpeed: 60,     
-    
-    ground: {  //cámara pegada al fondo
-        lookHeight: 40,
-        minClearance: 25,
-        follow: 2.0,
-        lookAhead: [40, 90],
-    },     
     
     skyColour: "#0B1D3B",
 };
@@ -160,7 +153,7 @@ class TerrainChunk {
 
 // Crear y destruir chunks
 
-    class TerrainChunkManager {
+class TerrainChunkManager {
     constructor(params) {
         this._scene = params.scene;
         this._camera = params.camera;
@@ -292,99 +285,168 @@ class TerrainChunk {
     }
 }
 
-//App (movimiento de cámara)
+//App (movimiento del pez y sincronización de cámara)
 
-    class ProceduralTerrain_Demo extends game.Game {
+class ProceduralTerrain_Demo extends game.Game {
     constructor() {
         super();
+        this._modeloPez = null;
+        this._adelante = 0;
+        this._teclaAdelante = false;
     }
 
     _OnInitialize() {
         this._controls = this._CreateControls();
 
         this._entities['_terrain'] = new TerrainChunkManager({
-        scene: this._graphics.Scene,
-        camera: this._graphics.Camera,
-        focus: () => this._controls.target,
+            scene: this._graphics.Scene,
+            camera: this._graphics.Camera,
+            
+            focus: () => (this._modeloPez ? this._modeloPez.position : this._controls.target),
         });
+
+        this._InitInput();
+        this._LoadPez();
+        this._InitJoystick();
     }
 
     _CreateControls() {
         const controls = new OrbitControls(
             this._graphics._camera, this._graphics._threejs.domElement);
-        controls.target.set(0, 60, 0);
-        controls.object.position.set(0, 0, 200);
-        controls.screenSpacePanning = false;    
-        controls.minPolarAngle = Math.PI * 0.30;    // el paneo se mueve sobre el suelo
-        controls.maxPolarAngle = Math.PI * 0.49;    // no pasar por debajo del horizonte
-        controls.minDistance = 50;
-        controls.maxDistance = 400;
+        
+        controls.minDistance = 5;
+        controls.maxDistance = 20;
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.1;
+        controls.maxPolarAngle = Math.PI / 2.25;
+        controls.minPolarAngle = Math.PI / 3;
         controls.update();
-        this._groundY = null;
 
-        // El vuelo automatico se pausa mientras el usuario toca/arrastra
-        this._interacting = false;
-        controls.addEventListener('start', () => { this._interacting = true; });
-        controls.addEventListener('end', () => { this._interacting = false; });
         return controls;
     }
 
+    _InitInput() {
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') this._teclaAdelante = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') this._teclaAdelante = false;
+        });
+    }
+
+    _LoadPez() {
+        const loader = new GLTFLoader();
+        loader.load(
+            '../Modelos/pez_abisal.glb',
+            (gltf) => {
+                this._modeloPez = gltf.scene;
+                const initialHeight = this._entities['_terrain'].HeightAt(0, 0) + 5;
+                this._modeloPez.position.set(0, initialHeight, 0);
+                this._graphics.Scene.add(this._modeloPez);
+            },
+            undefined,
+            (error) => {
+                console.error('Error al cargar el modelo:', error);
+            }
+        );
+
+        setTimeout(() => {
+            const zonaJoystick = document.getElementById("joystickZona");
+            if (zonaJoystick) {
+                zonaJoystick.style.transition = "opacity 1s ease";
+                zonaJoystick.style.opacity = "0";
+            }
+        }, 15000);
+    }
+
+    _InitJoystick() {
+        const zonaEl = document.getElementById("joystickZona");
+        if (!zonaEl || typeof nipplejs === 'undefined') return;
+
+        const options = {
+            zone: zonaEl,
+            mode: "static",
+            position: { left: '50%', bottom: '60%' },
+            size: 125,
+            lockY: true,
+            color: "red",
+        };
+
+        const joyManager = nipplejs.create(options);
+
+        joyManager.on("move", (evt, data) => {
+            const movAdelante = data.vector.y;
+            this._adelante = movAdelante > 0 ? Math.abs(movAdelante) : 0;
+        });
+
+        joyManager.on("end", () => {
+            this._adelante = 0;
+        });
+    }
+
     _OnStep(timeInSeconds) {
-        // Vuelo automatico hacia adelante: camara y objetivo se mueven juntos
-        if (_CONFIG.autoFlySpeed > 0 && !this._interacting) {
-        const dir = new THREE.Vector3().subVectors(
-            this._controls.target, this._controls.object.position);
-        dir.y = 0;
-        if (dir.lengthSq() > 1e-6) {
-            dir.normalize().multiplyScalar(_CONFIG.autoFlySpeed * timeInSeconds);
-            this._controls.object.position.add(dir);
-            this._controls.target.add(dir);
+        this._UpdatePersonaje(timeInSeconds);
+
+        // target de la camara
+        if (this._modeloPez) {
+            const camara = this._graphics._camera;
+            camara.position.sub(this._controls.target);
+            const offsetVertical = new THREE.Vector3(0, 3.0, 0); 
+            this._controls.target.copy(this._modeloPez.position).add(offsetVertical);
+             camara.position.add(this._controls.target);
         }
-        }
+
         this._controls.update();
-        this._KeepNearGround(timeInSeconds);
+
+       
+        if (this._entities['_terrain']) {
+            this._entities['_terrain'].Update(timeInSeconds);
+        }
     }
 
-    //Mantiene la cámara a una altura constante sobre el suelo
-    _KeepNearGround(dt) {
-        const G = _CONFIG.ground;
-        const terrain = this._entities['_terrain'];
-        const cam = this._controls.object.position;
-        const tgt = this._controls.target;
+    _UpdatePersonaje(dt) {
+        if (!this._modeloPez) return;
 
-        let ground = terrain.HeightAt(tgt.x, tgt.z);
-        const dx = tgt.x - cam.x, dz = tgt.z - cam.z;
-        const len = Math.hypot(dx, dz);
-        if (len > 1e-6) {
-        for (const d of G.lookAhead) {
-            ground = Math.max(ground, terrain.HeightAt(tgt.x + dx / len * d, tgt.z + dz / len * d));
-        }
+        const velocidad = 35;
+        const direccion = new THREE.Vector3();
+
+        const camara = this._graphics._camera;
+        camara.getWorldDirection(direccion);
+        direccion.y = 0;
+        direccion.normalize();
+
+        const rotacionActual = this._modeloPez.quaternion.clone();
+        const objetivoMirada = this._modeloPez.position.clone().add(direccion);
+        this._modeloPez.lookAt(objetivoMirada);
+        
+        const rotacionObjetivo = this._modeloPez.quaternion.clone();
+        this._modeloPez.quaternion.copy(rotacionActual);
+        
+        const suavizadoRotacion = 0.1; 
+        this._modeloPez.quaternion.slerp(rotacionObjetivo, suavizadoRotacion);
+
+        
+        if (this._adelante > 0 || this._teclaAdelante) {
+            const factor = this._adelante > 0 ? this._adelante : 1;
+            this._modeloPez.position.addScaledVector(direccion, factor * velocidad * dt);
         }
 
-        if(this._groundY === null) {
-            this._groundY = ground;
-        } else {
-            this._groundY += (ground - this._groundY) * (1 - Math.exp(-G.follow * dt));
+       //distancia del pez con el suelo
+        const terreno = this._entities['_terrain'];
+        if (terreno) {
+            const alturaSuelo = terreno.HeightAt(this._modeloPez.position.x, this._modeloPez.position.z);
+            if (this._modeloPez.position.y < alturaSuelo + 3) {
+                this._modeloPez.position.y = alturaSuelo + 3;
+            }
         }
 
-        const dy = (this._groundY + G.lookHeight) - tgt.y;
-        cam.y += dy;
-        tgt.y += dy;
-
-        const floor = terrain.HeightAt(cam.x, cam.z) + G.minClearance;
-        if (cam.y < floor) {
-            const up = floor - cam.y;
-            cam.y += up;
-            tgt.y += up;
-        }
-        this._controls.update();
+        this._modeloPez.updateMatrixWorld();
     }
-    }
+}
 
-
-    function _Main() {
+function _Main() {
     _APP = new ProceduralTerrain_Demo();
-    }
+}
 
-    _Main();
-
+_Main();
