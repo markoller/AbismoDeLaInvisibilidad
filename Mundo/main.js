@@ -318,7 +318,7 @@ class ProceduralTerrain_Demo extends game.Game {
         controls.maxDistance = 20;
         controls.enableDamping = true;
         controls.dampingFactor = 0.1;
-        controls.maxPolarAngle = Math.PI / 2.25;
+        controls.maxPolarAngle = Math.PI / 1.5;
         controls.minPolarAngle = Math.PI / 3;
         controls.update();
 
@@ -390,30 +390,40 @@ class ProceduralTerrain_Demo extends game.Game {
     }
 
     _OnStep(timeInSeconds) {
+        // 1. Actualizamos el movimiento y la posición del pez y del terreno
         this._UpdatePersonaje(timeInSeconds);
 
-        // target de la camara
-        if (this._modeloPez) {
-            const camara = this._graphics._camera;
-            camara.position.sub(this._controls.target);
-            const offsetVertical = new THREE.Vector3(0, 3.0, 0); 
-            this._controls.target.copy(this._modeloPez.position).add(offsetVertical);
-             camara.position.add(this._controls.target);
+        if (this._entities['_terrain']) {
+            this._entities['_terrain'].Update(timeInSeconds);
         }
 
+        // 2. Sincronizamos ÚNICAMENTE el objetivo (target) de la cámara con el pez.
+        // Al NO tocar camara.position manualmente, permites que OrbitControls 
+        // mantenga la libertad de movimiento que el usuario haga con el mouse/touch.
+        if (this._modeloPez && this._controls) {
+            const offsetVertical = new THREE.Vector3(0, 3.0, 0); // Ajusta la altura del foco si lo deseas
+            const targetPos = this._modeloPez.position.clone().add(offsetVertical);
+            
+            // Calculamos cuánto se ha movido el pez desde el frame anterior
+            const desplazamiento = targetPos.clone().sub(this._controls.target);
+
+            // Movemos tanto la cámara como el objetivo esa misma distancia (permite que la cámara "arrastre" su posición al avanzar)
+            this._controls.target.copy(targetPos);
+            this._graphics._camera.position.add(desplazamiento);
+        }
+
+        // 3. Actualizamos los controles para aplicar el amortiguamiento (damping) y la interacción del usuario
         this._controls.update();
 
-        // La camara nunca por debajo del suelo (independiente de si el pez cargo o no)
+        // 4. Seguridad anti-subsuelo para la cámara
         const terreno = this._entities['_terrain'];
         if (terreno) {
             const cam = this._graphics._camera.position;
             const piso = terreno.HeightAt(cam.x, cam.z) + 4;
             if (cam.y < piso) {
                 cam.y = piso;
-                this._graphics._camera.lookAt(this._controls.target);
             }
         }
-        // (el terreno ya se actualiza en game.js -> _StepEntities; llamarlo aca lo duplicaba)
     }
 
     _UpdatePersonaje(dt) {
