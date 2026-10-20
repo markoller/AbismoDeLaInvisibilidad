@@ -341,7 +341,7 @@ class ProceduralTerrain_Demo extends game.Game {
             '../Modelos/Pez/pez_abisal.glb',   // la carpeta real es Modelos/Pez/
             (gltf) => {
                 this._modeloPez = gltf.scene;
-                const initialHeight = this._entities['_terrain'].HeightAt(0, 0) + 6;
+                const initialHeight = this._entities['_terrain'].HeightAt(0, 0) + 12;
                 this._modeloPez.position.set(0, initialHeight, 0);
                 this._graphics.Scene.add(this._modeloPez);
 

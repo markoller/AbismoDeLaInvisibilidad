@@ -53,7 +53,7 @@ export const ASSET_CATALOG = [
     },
     {
         id: 'coral', placeholder: 'coral',
-        models: ['CoralSMALL.glb', 'CoralMED.glb', 'CoralBIG.glb', 'CoralMIX.glb', 'Coral2SMALL.glb', 'Coral2MED.glb', 'Coral2BIG.glb', 'Coral2MIX.glb'],
+        models: ['Coral1SMALL.glb', 'Coral1MED.glb', 'Coral1BIG.glb', 'Coral1MIX.glb', 'Coral2SMALL.glb', 'Coral2MED.glb', 'Coral2BIG.glb', 'Coral2MIX.glb'],
         spacing: 12, density: 0.10, size: [6, 10], sink: 0.02,
         heightRange: [0, 1.0], maxSlope: 1.2,
         patch: {scale: 90, strength: 0.8},
