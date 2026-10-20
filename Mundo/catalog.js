@@ -1,6 +1,6 @@
 //Catálogo (acá se agregan modelos)
 
-export const MODELS_PATH = '../Modelos/';
+export const MODELS_PATH = '../Modelos/Assets/';
 
 // Para usar tu base de datos, reemplazala por:
 //   const r = await fetch('/api/selfies/random');   

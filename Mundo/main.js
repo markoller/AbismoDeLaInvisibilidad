@@ -338,12 +338,16 @@ class ProceduralTerrain_Demo extends game.Game {
     _LoadPez() {
         const loader = new GLTFLoader();
         loader.load(
-            '../Modelos/pez_abisal.glb',
+            '../Modelos/Pez/pez_abisal.glb',   // la carpeta real es Modelos/Pez/
             (gltf) => {
                 this._modeloPez = gltf.scene;
-                const initialHeight = this._entities['_terrain'].HeightAt(0, 0) + 5;
+                const initialHeight = this._entities['_terrain'].HeightAt(0, 0) + 6;
                 this._modeloPez.position.set(0, initialHeight, 0);
                 this._graphics.Scene.add(this._modeloPez);
+
+                // La camara arranca detras y arriba del pez (antes quedaba en (75,20,0), dentro del terreno)
+                this._controls.target.copy(this._modeloPez.position).add(new THREE.Vector3(0, 3, 0));
+                this._graphics._camera.position.set(0, initialHeight + 8, 18);
             },
             undefined,
             (error) => {
@@ -399,10 +403,17 @@ class ProceduralTerrain_Demo extends game.Game {
 
         this._controls.update();
 
-       
-        if (this._entities['_terrain']) {
-            this._entities['_terrain'].Update(timeInSeconds);
+        // La camara nunca por debajo del suelo (independiente de si el pez cargo o no)
+        const terreno = this._entities['_terrain'];
+        if (terreno) {
+            const cam = this._graphics._camera.position;
+            const piso = terreno.HeightAt(cam.x, cam.z) + 4;
+            if (cam.y < piso) {
+                cam.y = piso;
+                this._graphics._camera.lookAt(this._controls.target);
+            }
         }
+        // (el terreno ya se actualiza en game.js -> _StepEntities; llamarlo aca lo duplicaba)
     }
 
     _UpdatePersonaje(dt) {
@@ -435,10 +446,13 @@ class ProceduralTerrain_Demo extends game.Game {
        //distancia del pez con el suelo
         const terreno = this._entities['_terrain'];
         if (terreno) {
-            const alturaSuelo = terreno.HeightAt(this._modeloPez.position.x, this._modeloPez.position.z);
-            if (this._modeloPez.position.y < alturaSuelo + 3) {
-                this._modeloPez.position.y = alturaSuelo + 3;
-            }
+            const p = this._modeloPez.position;
+            const bajo = terreno.HeightAt(p.x, p.z);
+            // mira un poco adelante para subir ANTES de llegar a una loma
+            const adelante = terreno.HeightAt(p.x + direccion.x * 15, p.z + direccion.z * 15);
+            const deseada = Math.max(bajo, adelante) + 6;           // altura "de nado"
+            p.y += (deseada - p.y) * (1 - Math.exp(-3.0 * dt));      // sube Y BAJA suavemente
+            if (p.y < bajo + 3) { p.y = bajo + 3; }                  // piso duro
         }
 
         this._modeloPez.updateMatrixWorld();

@@ -149,7 +149,7 @@ export const assets = (function() {
             }
 
             mat.map = tex;
-            mat.color.set(0xffffff);
+            mat.color.set(0x777777);
             mat.needsUpdate = true;
         } catch (e) {
             mat.color.set(0xff00ff);       // magenta = fallo la carga de la imagen
