@@ -374,7 +374,7 @@ class ProceduralTerrain_Demo extends game.Game {
             position: { left: '50%', bottom: '60%' },
             size: 125,
             lockY: true,
-            color: "red",
+            color: "white",
         };
 
         const joyManager = nipplejs.create(options);
@@ -429,7 +429,7 @@ class ProceduralTerrain_Demo extends game.Game {
     _UpdatePersonaje(dt) {
         if (!this._modeloPez) return;
 
-        const velocidad = 35;
+        const velocidad = 20;
         const direccion = new THREE.Vector3();
 
         const camara = this._graphics._camera;
