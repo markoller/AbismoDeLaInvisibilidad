@@ -368,6 +368,14 @@ class ProceduralTerrain_Demo extends game.Game {
         const zonaEl = document.getElementById("joystickZona");
         if (!zonaEl || typeof nipplejs === 'undefined') return;
 
+        // 1. Evitamos que los eventos del joystick burbujeen hacia el canvas y afecten a OrbitControls
+        const eventosBloquear = ['touchstart', 'touchmove', 'touchend', 'pointerdown', 'pointermove', 'pointerup', 'pointercancel'];
+        eventosBloquear.forEach(eventType => {
+            zonaEl.addEventListener(eventType, (e) => {
+                e.stopPropagation();
+            });
+        });
+
         const options = {
             zone: zonaEl,
             mode: "static",
