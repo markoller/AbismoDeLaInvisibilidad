@@ -396,44 +396,38 @@ _CreateControls() {
         }, 15000);
     }
 
-_InitJoystick() {
-    const zonaEl = document.getElementById("joystickZona");
+    _InitJoystick() {
 
-    if (!zonaEl || typeof nipplejs === "undefined") return;
+        const zonaEl = document.getElementById("joystickZona");
 
-    zonaEl.style.touchAction = "none";
+        if (!zonaEl || typeof nipplejs === 'undefined') return;
 
-    const options = {
-        zone: zonaEl,
-        mode: "static",
-        position: { left: "50%", bottom: "60%" },
-        size: 125,
-        lockY: true,
-        color: "white",
-    };
 
-    const joyManager = nipplejs.create(options);
 
-    joyManager.on("move", (evt, data) => {
-        const movAdelante = data.vector.y;
-        this._adelante = movAdelante > 0
-            ? Math.abs(movAdelante)
-            : 0;
-    });
+        const options = {
+            zone: zonaEl,
+            mode: "static",
+            position: { left: '50%', bottom: '60%' },
+            size: 125,
+            lockY: true,
+            color: "white",
+        };
 
-    joyManager.on("end", () => {
-        this._adelante = 0;
-    });
 
-    zonaEl.addEventListener("touchstart", (e) => {
-        e.stopPropagation();
-    }, { capture: true, passive: true });
 
-    zonaEl.addEventListener("pointerdown", (e) => {
-        e.stopPropagation();
-    }, true);
-}
+        const joyManager = nipplejs.create(options);
 
+        joyManager.on("move", (evt, data) => {
+            const movAdelante = data.vector.y;
+            this._adelante = movAdelante > 0 ? Math.abs(movAdelante) : 0;
+
+        });
+
+        joyManager.on("end", () => {
+            this._adelante = 0;
+
+        });
+    }
 
     _OnStep(timeInSeconds) {
         // 1. Actualizamos el movimiento y la posición del pez y del terreno
