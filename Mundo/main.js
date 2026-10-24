@@ -370,19 +370,66 @@ class ProceduralTerrain_Demo extends game.Game {
 
         const domElement = this._graphics._threejs.domElement;
         if (domElement) {
-            const blockJoystickTouches = (e) => {
-                const rect = zonaEl.getBoundingClientRect();
-                
-                const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
-                const clientY = e.clientY !== undefined ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+            // Conjunto para rastrear los IDs de los dedos que empezaron en el joystick
+            const joystickPointers = new Set();
 
+            const blockEvent = (e) => {
+                const rect = zonaEl.getBoundingClientRect();
+                const pointerId = e.pointerId !== undefined ? e.pointerId : null;
+
+                // Extraer coordenadas de manera robusta
+                let clientX = 0, clientY = 0;
+                if (e.clientX !== undefined) {
+                    clientX = e.clientX;
+                    clientY = e.clientY;
+                } else if (e.touches && e.touches.length > 0) {
+                    const t = e.touches[0];
+                    clientX = t.clientX;
+                    clientY = t.clientY;
+                } else if (e.changedTouches && e.changedTouches.length > 0) {
+                    const t = e.changedTouches[0];
+                    clientX = t.clientX;
+                    clientY = t.clientY;
+                }
+
+                const isDown = e.type === 'pointerdown' || e.type === 'touchstart';
+                const isUp = e.type === 'pointerup' || e.type === 'pointercancel' || e.type === 'touchend' || e.type === 'touchcancel';
+
+                if (isDown) {
+                    // Si el toque inicia dentro del área del joystick
+                    if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+                        if (pointerId !== null) {
+                            joystickPointers.add(pointerId);
+                        }
+                        e.stopImmediatePropagation();
+                        return;
+                    }
+                } else if (pointerId !== null && joystickPointers.has(pointerId)) {
+                    // Si este dedo ya venía del joystick, bloqueamos CUALQUIER movimiento suyo (aunque salga de la caja)
+                    e.stopImmediatePropagation();
+                    if (isUp) {
+                        joystickPointers.delete(pointerId);
+                    }
+                    return;
+                }
+
+                // Respaldo por coordenadas en caso de toques rápidos sin pointerId directo
                 if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
                     e.stopImmediatePropagation();
+                    if (isUp && pointerId !== null) {
+                        joystickPointers.delete(pointerId);
+                    }
                 }
             };
 
-            domElement.addEventListener('pointerdown', blockJoystickTouches, { capture: true });
-            domElement.addEventListener('touchstart', blockJoystickTouches, { capture: true });
+            const eventos = [
+                'pointerdown', 'pointermove', 'pointerup', 'pointercancel',
+                'touchstart', 'touchmove', 'touchend', 'touchcancel'
+            ];
+
+            eventos.forEach(eventType => {
+                domElement.addEventListener(eventType, blockEvent, { capture: true, passive: false });
+            });
         }
 
         const options = {
