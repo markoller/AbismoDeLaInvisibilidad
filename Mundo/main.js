@@ -10,6 +10,8 @@ import {assets} from './assets.js';
 import {scatter} from './scatter.js';
 import {ASSET_CATALOG} from './catalog.js';
 
+import {Modelo} from './cargar-modelo.js';
+
 let _APP = null;
 
 //Configuraciones
@@ -161,7 +163,7 @@ class TerrainChunkManager {
         this._Init();
     }
 
-    _Init() {
+    async _Init() {
         const size = _CONFIG.chunkSize;
 
         // Perlin Noise
@@ -261,7 +263,7 @@ class TerrainChunkManager {
         return this._generator.Get(x, z);
     }
 
-    Update(timeInSeconds) {
+    async Update(timeInSeconds) {
         const p = this._camera.position;
         const cx = Math.floor(p.x / _CONFIG.chunkSize);
         const cz = Math.floor(p.z / _CONFIG.chunkSize);
@@ -281,6 +283,8 @@ class TerrainChunkManager {
         }
 
         const f = this._focus ? this._focus() : p;
+        //await new Promise(r => setTimeout(r, 2000));
+
         this._props.Update(Math.floor(f.x / _CONFIG.chunkSize), Math.floor(f.z / _CONFIG.chunkSize));
     }
 }
@@ -295,7 +299,7 @@ class ProceduralTerrain_Demo extends game.Game {
         this._teclaAdelante = false;
     }
 
-    _OnInitialize() {
+   async _OnInitialize() {
         this._controls = this._CreateControls();
 
         this._entities['_terrain'] = new TerrainChunkManager({
@@ -306,7 +310,7 @@ class ProceduralTerrain_Demo extends game.Game {
         });
 
         this._InitInput();
-        this._LoadPez();
+        await this._LoadPez();
         this._InitJoystick();
     }
 
@@ -335,8 +339,24 @@ class ProceduralTerrain_Demo extends game.Game {
         });
     }
 
-    _LoadPez() {
-        const loader = new GLTFLoader();
+   
+    async _LoadPez() {
+        const initialHeight = this._entities['_terrain'].HeightAt(0, 0) + 12;
+        this._modeloPez = new Modelo();
+        var wasd = new Modelo();
+        //await this._modeloPez.init('../Modelos/Pez/pez_animado.glb',this._graphics.Scene,this._graphics._camera);
+        await wasd.init('../Modelos/Pez/pez_animado.glb',this._graphics.Scene,this._graphics._camera);
+        this._modeloPez = wasd.get();
+        //console.log(this._modeloPez);
+        this._modeloPez.modelo_base.position.set(0, initialHeight, 0);
+        this._modeloPez.modelo_outline.position.set(0, initialHeight, 0);
+        // La camara arranca detras y arriba del pez (antes quedaba en (75,20,0), dentro del terreno)
+        this._controls.target.copy(this._modeloPez.modelo_base.position).add(new THREE.Vector3(0, 3, 0));
+        //this._controls.target.copy(this._modeloPez.modelo_outline.position).add(new THREE.Vector3(0, 3, 0));
+        this._graphics._camera.position.set(0, initialHeight + 8, 18);
+        this._modeloPez.modelo_base.scale.set(20,20,20);
+        this._modeloPez.modelo_outline.scale.set(20.01,20.01,20.01);
+        /*const loader = new GLTFLoader();
         loader.load(
             '../Modelos/Pez/pez_abisal.glb',   // la carpeta real es Modelos/Pez/
             (gltf) => {
@@ -353,7 +373,7 @@ class ProceduralTerrain_Demo extends game.Game {
             (error) => {
                 console.error('Error al cargar el modelo:', error);
             }
-        );
+        );*/
 
         setTimeout(() => {
             const zonaJoystick = document.getElementById("joystickZona");
@@ -418,8 +438,9 @@ class ProceduralTerrain_Demo extends game.Game {
         // Al NO tocar camara.position manualmente, permites que OrbitControls 
         // mantenga la libertad de movimiento que el usuario haga con el mouse/touch.
         if (this._modeloPez && this._controls) {
+            //this._modeloPez.update();
             const offsetVertical = new THREE.Vector3(0, 3.0, 0); // Ajusta la altura del foco si lo deseas
-            const targetPos = this._modeloPez.position.clone().add(offsetVertical);
+            const targetPos = this._modeloPez.modelo_base.position.clone().add(offsetVertical);
             
             // Calculamos cuánto se ha movido el pez desde el frame anterior
             const desplazamiento = targetPos.clone().sub(this._controls.target);
@@ -454,26 +475,39 @@ class ProceduralTerrain_Demo extends game.Game {
         direccion.y = 0;
         direccion.normalize();
 
-        const rotacionActual = this._modeloPez.quaternion.clone();
-        const objetivoMirada = this._modeloPez.position.clone().add(direccion);
-        this._modeloPez.lookAt(objetivoMirada);
+        const rotacionActual = this._modeloPez.modelo_base.quaternion.clone();
+        const objetivoMirada = this._modeloPez.modelo_base.position.clone().add(direccion);
+        this._modeloPez.modelo_base.lookAt(objetivoMirada);
+        this._modeloPez.modelo_outline.lookAt(objetivoMirada);
         
-        const rotacionObjetivo = this._modeloPez.quaternion.clone();
-        this._modeloPez.quaternion.copy(rotacionActual);
+        const rotacionObjetivo = this._modeloPez.modelo_base.quaternion.clone();
+        this._modeloPez.modelo_base.quaternion.copy(rotacionActual);
+        this._modeloPez.modelo_outline.quaternion.copy(rotacionActual);
         
         const suavizadoRotacion = 0.1; 
-        this._modeloPez.quaternion.slerp(rotacionObjetivo, suavizadoRotacion);
+        this._modeloPez.modelo_base.quaternion.slerp(rotacionObjetivo, suavizadoRotacion);
+        this._modeloPez.modelo_outline.quaternion.slerp(rotacionObjetivo, suavizadoRotacion);
 
         
         if (this._adelante > 0 || this._teclaAdelante) {
             const factor = this._adelante > 0 ? this._adelante : 1;
-            this._modeloPez.position.addScaledVector(direccion, factor * velocidad * dt);
+            this._modeloPez.modelo_base.position.addScaledVector(direccion, factor * velocidad * dt);
+            this._modeloPez.modelo_outline.position.addScaledVector(direccion, factor * velocidad * dt);
         }
 
        //distancia del pez con el suelo
         const terreno = this._entities['_terrain'];
         if (terreno) {
-            const p = this._modeloPez.position;
+            const p = this._modeloPez.modelo_base.position;
+            const bajo = terreno.HeightAt(p.x, p.z);
+            // mira un poco adelante para subir ANTES de llegar a una loma
+            const adelante = terreno.HeightAt(p.x + direccion.x * 15, p.z + direccion.z * 15);
+            const deseada = Math.max(bajo, adelante) + 6;           // altura "de nado"
+            p.y += (deseada - p.y) * (1 - Math.exp(-3.0 * dt));      // sube Y BAJA suavemente
+            if (p.y < bajo + 3) { p.y = bajo + 3; }                  // piso duro
+        }
+        if (terreno) {
+            const p = this._modeloPez.modelo_outline.position;
             const bajo = terreno.HeightAt(p.x, p.z);
             // mira un poco adelante para subir ANTES de llegar a una loma
             const adelante = terreno.HeightAt(p.x + direccion.x * 15, p.z + direccion.z * 15);
@@ -482,7 +516,12 @@ class ProceduralTerrain_Demo extends game.Game {
             if (p.y < bajo + 3) { p.y = bajo + 3; }                  // piso duro
         }
 
-        this._modeloPez.updateMatrixWorld();
+        this._modeloPez.modelo_base.updateMatrixWorld();
+        this._modeloPez.modelo_base.updateMatrixWorld();
+        this._modeloPez.update();
+        //this._modeloPez.modelo_outline.quaternion.copy(this._modeloPez.modelo_base.quaternion.clone());
+        //this._modeloPez.modelo_outline.position.set(this._modeloPez.modelo_base.position);
+        //this._modeloPez.modelo_outline.updateMatrixWorld();
     }
 }
 
