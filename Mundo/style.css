@@ -66,12 +66,13 @@ html, body {
     font-size: 1.2em;
 }
 
+
 #joystickZona {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 40vw;
-      height: 40vh;
-      z-index: 10;
-      touch-action: none;
-    }
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 40vw;
+    height: 40vh;
+    z-index: 10;
+    touch-action: none;
+}

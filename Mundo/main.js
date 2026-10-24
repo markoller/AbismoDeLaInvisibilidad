@@ -314,20 +314,32 @@ class ProceduralTerrain_Demo extends game.Game {
         this._InitJoystick();
     }
 
-    _CreateControls() {
-        const controls = new OrbitControls(
-            this._graphics._camera, this._graphics._threejs.domElement);
-        
-        controls.minDistance = 5;
-        controls.maxDistance = 20;
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.1;
-        controls.maxPolarAngle = Math.PI / 1.5;
-        controls.minPolarAngle = Math.PI / 3;
-        controls.update();
+    
 
-        return controls;
+_CreateControls() {
+    const controls = new OrbitControls(
+        this._graphics._camera,
+        this._graphics._threejs.domElement
+    );
+
+    controls.minDistance = 5;
+    controls.maxDistance = 20;
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.1;
+    controls.maxPolarAngle = Math.PI / 1.5;
+    controls.minPolarAngle = Math.PI / 3;
+
+    if (_IS_MOBILE) {
+        controls.enablePan = false;
+        controls.touches.ONE = THREE.TOUCH.ROTATE;
+        controls.touches.TWO = THREE.TOUCH.DOLLY_ROTATE;
     }
+
+    controls.update();
+    return controls;
+}
+
+
 
     _InitInput() {
         window.addEventListener('keydown', (e) => {
@@ -384,47 +396,44 @@ class ProceduralTerrain_Demo extends game.Game {
         }, 15000);
     }
 
-    _InitJoystick() {
-        const zonaEl = document.getElementById("joystickZona");
-        if (!zonaEl || typeof nipplejs === 'undefined') return;
+_InitJoystick() {
+    const zonaEl = document.getElementById("joystickZona");
 
-        const domElement = this._graphics._threejs.domElement;
-        if (domElement) {
-            const blockJoystickTouches = (e) => {
-                const rect = zonaEl.getBoundingClientRect();
-                
-                const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
-                const clientY = e.clientY !== undefined ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+    if (!zonaEl || typeof nipplejs === "undefined") return;
 
-                if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
-                    e.stopImmediatePropagation();
-                }
-            };
+    zonaEl.style.touchAction = "none";
 
-            domElement.addEventListener('pointerdown', blockJoystickTouches, { capture: true });
-            domElement.addEventListener('touchstart', blockJoystickTouches, { capture: true });
-        }
+    const options = {
+        zone: zonaEl,
+        mode: "static",
+        position: { left: "50%", bottom: "60%" },
+        size: 125,
+        lockY: true,
+        color: "white",
+    };
 
-        const options = {
-            zone: zonaEl,
-            mode: "static",
-            position: { left: '50%', bottom: '60%' },
-            size: 125,
-            lockY: true,
-            color: "white",
-        };
+    const joyManager = nipplejs.create(options);
 
-        const joyManager = nipplejs.create(options);
+    joyManager.on("move", (evt, data) => {
+        const movAdelante = data.vector.y;
+        this._adelante = movAdelante > 0
+            ? Math.abs(movAdelante)
+            : 0;
+    });
 
-        joyManager.on("move", (evt, data) => {
-            const movAdelante = data.vector.y;
-            this._adelante = movAdelante > 0 ? Math.abs(movAdelante) : 0;
-        });
+    joyManager.on("end", () => {
+        this._adelante = 0;
+    });
 
-        joyManager.on("end", () => {
-            this._adelante = 0;
-        });
-    }
+    zonaEl.addEventListener("touchstart", (e) => {
+        e.stopPropagation();
+    }, { capture: true, passive: true });
+
+    zonaEl.addEventListener("pointerdown", (e) => {
+        e.stopPropagation();
+    }, true);
+}
+
 
     _OnStep(timeInSeconds) {
         // 1. Actualizamos el movimiento y la posición del pez y del terreno
