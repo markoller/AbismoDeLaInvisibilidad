@@ -9,8 +9,14 @@ export class Modelo {
     animaciones_base;
     nado_base;
     clock;
+    posX;
+    posY;
+    posZ;
 
     constructor() {
+        this.posX = 0;
+        this.posY = 0;
+        this.posZ = 0;
         this.clock = new THREE.Clock();
     }
 
@@ -39,6 +45,7 @@ export class Modelo {
         });
 
         this.modelo_outline = modeloO;
+        
         this.animaciones_outline = new THREE.AnimationMixer(this.modelo_outline);
         
         if (gltfOutline.animations && gltfOutline.animations.length > 0) {
@@ -68,11 +75,21 @@ export class Modelo {
     update() {
         const delta = this.clock.getDelta();
 
+        this.modelo_base.position.x = this.posX;
+        this.modelo_base.position.y = this.posY;
+        this.modelo_base.position.z = this.posZ;
+
+        this.modelo_outline.position.x = this.posX;
+        this.modelo_outline.position.y = this.posY;
+        this.modelo_outline.position.z = this.posZ;
+
+        //this.posZ +=delta*0.65;
+
         if (this.animaciones_outline) {
-            this.animaciones_outline.update(delta);
+            this.animaciones_outline.update(delta*0.65);
         }
         if (this.animaciones_base) {
-            this.animaciones_base.update(delta);
+            this.animaciones_base.update(delta*0.65);
         }
 
         this.modelo_outline.traverse((obj) => {

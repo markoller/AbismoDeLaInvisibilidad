@@ -58,6 +58,8 @@ controls.update();
 
 var modelo = new Modelo();
 await modelo.init('../Modelos/Pez/pez_animado.glb',scene,camera);
+var modelo2 = new Modelo();
+await modelo2.init('../Modelos/Pez/luz.glb',scene,camera);
 //await modelo.init('../Modelos/Pez/luz.glb',scene,camera);
 //await modelo.init('../Shaders/Modelos/pez_abisal_luz.glb',scene,camera);
 //THREE.LoopRepeat
