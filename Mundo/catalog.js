@@ -28,6 +28,7 @@ export async function randomSelfieUrl() {
 export const ASSET_CATALOG = [
     {
         id: 'barco', placeholder: 'barco',
+        collide: {scale: 0.9},
         models: ['barquito.glb'],
         spacing: 320, density: 0.06, size: [60, 100], sink: 0.15,
         heightRange: [0, 0.35], maxSlope: 0.35, flat: 0.3,
@@ -35,6 +36,7 @@ export const ASSET_CATALOG = [
     },
     {
         id: 'huesos', placeholder: 'huesos',
+        collide: {scale: 0.8},
         models: ['pez_abis.glb', 'pez_asal.glb'],
         spacing: 220, density: 0.10, size: [30, 55], sink: 0.10,
         heightRange: [0, 0.40], maxSlope: 0.5, flat: 0.3,
@@ -42,17 +44,26 @@ export const ASSET_CATALOG = [
     },
     {
         id: 'selfies', placeholder: 'selfies',
+        collide: {scale: 1.0},
         models: [],                                   
         images: {
-            aspect: 0.75,                             
+            aspect: 0.75,
+            glowRadius: 90,           // distancia (al borde de la selfie) a la que empieza a iluminarse
+            glowIntensity: 0.8,       // brillo propio maximo cuando el pez esta pegado
+            baseGlow: 0.0,            // brillo propio permanente (0 = solo la luz de la escena)
+            lifetime: 30,             // segundos SEGUIDOS que el pez debe estar cerca antes de que empiece a desvanecerse
+            fadeSeconds: 3,           // duracion del desvanecimiento (la imagen es 'consumida' mientras el pez sigue cerca)
+            recoverSeconds: 1.5,      // si el pez se va a mitad del desvanecimiento, en cuanto tarda en recuperarse
+            ghostOpacity: 0.25,       // opacidad final: queda traspasable                             
             source: randomSelfieUrl,                  
         },
-        spacing: 160, density: 0.20, size: [55, 75], sink: 0.0,   
+        spacing: 160, density: 0.20, size: [55, 75], sink: 0.06,   
         heightRange: [0, 0.40], maxSlope: 0.5, flat: 0.3,
         avoid: {barco: 25, huesos: 20},
     },
     {
         id: 'coral', placeholder: 'coral',
+        collide: {scale: 0.7},
         models: ['Coral1SMALL.glb', 'Coral1MED.glb', 'Coral1BIG.glb', 'Coral1MIX.glb', 'Coral2SMALL.glb', 'Coral2MED.glb', 'Coral2BIG.glb', 'Coral2MIX.glb'],
         spacing: 12, density: 0.10, size: [6, 10], sink: 0.02,
         heightRange: [0, 1.0], maxSlope: 1.2,
@@ -61,6 +72,7 @@ export const ASSET_CATALOG = [
     },
     {
         id: 'piedra', placeholder: 'piedra',
+        collide: {scale: 0.85},
         models: ['RocaSMALL.glb', 'RocaMED.glb', 'RocaBIG.glb', 'RocaMIX.glb'],
         spacing: 12, density: 0.20, size: [10, 16], sink: 0.25,
         heightRange: [0, 1.0], maxSlope: 1.2,
@@ -69,6 +81,7 @@ export const ASSET_CATALOG = [
     },
     {
         id: 'algas', placeholder: 'algas',
+        // sin 'collide': el pez atraviesa las algas
         models: ['AlgaSMALL.glb', 'AlgaMED.glb', 'AlgaBIG.glb', 'AlgaMIX.glb'],
         spacing: 6, density: 0.40, size: [30, 50], sink: 0.00,
         heightRange: [0, 0.45], maxSlope: 0.6,

@@ -263,6 +263,16 @@ class TerrainChunkManager {
         return this._generator.Get(x, z);
     }
 
+    // Saca 'pos' de los assets que colisionan (todos menos los que no tengan 'collide')
+    ResolveCollisions(pos, radius) {
+        this._props.Collide(pos, radius);
+    }
+
+    // Brillo y desvanecimiento de las selfies segun donde esta el pez
+    UpdateSelfies(pos, dt) {
+        this._props.UpdateSelfies(pos, dt);
+    }
+
     async Update(timeInSeconds) {
         const p = this._camera.position;
         const cx = Math.floor(p.x / _CONFIG.chunkSize);
@@ -306,7 +316,7 @@ class ProceduralTerrain_Demo extends game.Game {
             scene: this._graphics.Scene,
             camera: this._graphics.Camera,
             
-            focus: () => (this._modeloPez ? this._modeloPez.position : this._controls.target),
+            focus: () => (this._modeloPez ? this._modeloPez.modelo_base.position : this._controls.target),
         });
 
         this._InitInput();
@@ -433,9 +443,7 @@ _CreateControls() {
         // 1. Actualizamos el movimiento y la posición del pez y del terreno
         this._UpdatePersonaje(timeInSeconds);
 
-        if (this._entities['_terrain']) {
-            this._entities['_terrain'].Update(timeInSeconds);
-        }
+        // (el terreno ya se actualiza en game.js -> _StepEntities; llamarlo aca lo duplicaba)
 
         // 2. Sincronizamos ÚNICAMENTE el objetivo (target) de la cámara con el pez.
         // Al NO tocar camara.position manualmente, permites que OrbitControls 
@@ -498,8 +506,29 @@ _CreateControls() {
             this._modeloPez.modelo_outline.position.addScaledVector(direccion, factor * velocidad * dt);
         }
 
-       //distancia del pez con el suelo
+        // Colision con los assets (barco, huesos, selfies, corales, rocas; no algas).
+        // El pez es largo y angosto: se prueban dos circulos, uno hacia la cabeza y otro
+        // hacia la cola, y cada empuje mueve al pez (y a su contorno) por igual.
         const terreno = this._entities['_terrain'];
+        if (terreno) {
+            const FISH_RADIUS = 1.8;      // radio de cada circulo
+            const FISH_OFFSET = 2.6;      // distancia de cada circulo al centro del pez
+            const pb = this._modeloPez.modelo_base.position;
+            const po = this._modeloPez.modelo_outline.position;
+            const fwd = this._modeloPez.modelo_base.getWorldDirection(new THREE.Vector3());
+            fwd.y = 0;
+            fwd.normalize();
+            for (const side of [1, -1]) {
+                const probe = new THREE.Vector3(pb.x + fwd.x * FISH_OFFSET * side, pb.y, pb.z + fwd.z * FISH_OFFSET * side);
+                const antesX = probe.x, antesZ = probe.z;
+                terreno.ResolveCollisions(probe, FISH_RADIUS);
+                pb.x += probe.x - antesX;  pb.z += probe.z - antesZ;
+                po.x += probe.x - antesX;  po.z += probe.z - antesZ;
+            }
+            terreno.UpdateSelfies(pb, dt);
+        }
+
+       //distancia del pez con el suelo
         if (terreno) {
             const p = this._modeloPez.modelo_base.position;
             const bajo = terreno.HeightAt(p.x, p.z);

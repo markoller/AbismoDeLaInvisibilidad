@@ -81,7 +81,14 @@ export const assets = (function() {
             });
         }
         });
-        return {parts: parts, baseSize: baseSize};
+        // Medidas normalizadas (1 = el lado mas grande del modelo), para las colisiones:
+        // el modelo queda centrado en x/z sobre el punto de colocacion y apoyado en y = 0.
+        return {
+        parts: parts, baseSize: baseSize,
+        halfX: size.x / 2 / baseSize,
+        halfZ: size.z / 2 / baseSize,
+        height: size.y / baseSize,
+        };
     }
 
     class _AssetLibrary {
@@ -129,15 +136,110 @@ export const assets = (function() {
         return this._entries[catId + '|' + variant];
         }
 
-        GetImageMaterial(cat, key) {
+        GetImageMaterial(cat, key, pl) {
         const id = cat.id + '|' + key;
         let mat = this._imageMats.get(id);
         if (!mat) {
-            mat = new THREE.MeshBasicMaterial({color: 0x888888, side: THREE.DoubleSide});
+            // Material con iluminacion (recibe la luz y la niebla de la escena). El brillo propio
+            // (emissive) arranca apagado y se enciende cuando el pez se acerca.
+            mat = new THREE.MeshStandardMaterial({
+                color: 0x888888, roughness: 1.0, metalness: 0.0, side: THREE.DoubleSide,
+            });
+            mat.userData = {
+                catId: cat.id,
+                x: pl.x, z: pl.z, rot: pl.rot,
+                half: cat.images.aspect * pl.size / 2,   // semiancho del cuadro
+                glow: 0,         // 0..1, brillo actual (suavizado)
+                age: 0,          // segundos SEGUIDOS con el pez dentro del radio (se reinicia al alejarse)
+                fade: 0,         // 0..1, cuanto fue "consumida" (0 = intacta, 1 = consumida)
+                ghost: false,    // true = ya fue consumida del todo: traspasable para siempre
+            };
             this._imageMats.set(id, mat);
             this._LoadImage(cat, mat);
         }
         return mat;
+        }
+
+        // Una selfie "fantasma" (ya se desvanecio) deja de colisionar
+        IsImageGhost(cat, pl) {
+        const mat = this._imageMats.get(cat.id + '|' + Math.round(pl.x) + '_' + Math.round(pl.z));
+        return !!(mat && mat.userData.ghost);
+        }
+
+        // Se llama en cada frame con la posicion del pez:
+        //  - brillo suave segun la cercania
+        //  - el reloj cuenta SOLO mientras el pez esta dentro del radio; si se aleja, vuelve a 0
+        //  - pasados 'lifetime' segundos seguidos la imagen empieza a ser "consumida" (baja su
+        //    opacidad); si el pez se va antes de terminar, se recupera
+        //  - cuando se consume del todo queda traspasable de forma permanente
+        UpdateImages(cat, pos, dt) {
+        const C = cat.images;
+        const R = C.glowRadius !== undefined ? C.glowRadius : 60;
+        const maxGlow = C.glowIntensity !== undefined ? C.glowIntensity : 0.8;
+        const base = C.baseGlow || 0;
+        const life = C.lifetime !== undefined ? C.lifetime : 30;
+        const fadeSec = C.fadeSeconds !== undefined ? C.fadeSeconds : 3;
+        const ghostOp = C.ghostOpacity !== undefined ? C.ghostOpacity : 0.25;
+        const recoverSec = C.recoverSeconds !== undefined ? C.recoverSeconds : 1.5;
+        const k = 1 - Math.exp(-3.0 * dt);       // suavizado del brillo
+
+        for (const mat of this._imageMats.values()) {
+            const u = mat.userData;
+            if (u.catId !== cat.id) continue;
+
+            // ya consumida: solo se apaga el brillo que quedara
+            if (u.ghost) {
+            u.glow += (0 - u.glow) * k;
+            mat.emissiveIntensity = base + maxGlow * u.glow;
+            continue;
+            }
+
+            // distancia horizontal del pez al cuadro (un segmento fino de ancho 2*half)
+            const dx = pos.x - u.x, dz = pos.z - u.z;
+            const cs = Math.cos(u.rot), sn = Math.sin(u.rot);
+            const lx = dx * cs - dz * sn;
+            const lz = dx * sn + dz * cs;
+            const d = Math.hypot(lx - Math.max(-u.half, Math.min(u.half, lx)), lz);
+            const near = d <= R;
+
+            if (near) {
+            u.age += dt;
+            const goal = Math.min(1, Math.max(0, (u.age - life) / fadeSec));
+            // si volvio mientras todavia se estaba recuperando, sigue recuperandose hasta alcanzar el objetivo
+            u.fade = u.fade > goal ? Math.max(goal, u.fade - dt / recoverSec) : goal;
+            } else {
+            u.age = 0;                                         // se alejo: el reloj se reinicia
+            u.fade = Math.max(0, u.fade - dt / recoverSec);    // y la imagen se recupera
+            }
+
+            // brillo: sube suave al acercarse, baja suave al alejarse
+            let target = 0;
+            if (d < R) {
+            const t = 1 - d / R;
+            target = t * t * (3 - 2 * t);
+            }
+            u.glow += (target - u.glow) * k;
+            mat.emissiveIntensity = base + maxGlow * u.glow;
+
+            // opacidad segun cuanto fue consumida
+            if (u.fade > 0) {
+            if (!mat.transparent) {
+                mat.transparent = true;
+                mat.depthWrite = false;
+                mat.needsUpdate = true;           // cambia la variante del shader
+            }
+            mat.opacity = 1 - (1 - ghostOp) * u.fade;
+            } else if (mat.transparent) {
+            mat.transparent = false;
+            mat.depthWrite = true;
+            mat.opacity = 1;
+            mat.needsUpdate = true;
+            }
+
+            if (u.fade >= 1) {
+            u.ghost = true;                           // consumida del todo: ya no colisiona
+            }
+        }
         }
 
         async _LoadImage(cat, mat) {
@@ -157,7 +259,10 @@ export const assets = (function() {
             }
 
             mat.map = tex;
-            mat.color.set(0x777777);
+            mat.emissiveMap = tex;                 // el brillo propio usa la misma imagen
+            mat.emissive.set(0xffffff);
+            mat.emissiveIntensity = cat.images.baseGlow || 0;
+            mat.color.set(0xffffff);               // el oscurecimiento lo da la iluminacion de la escena
             mat.needsUpdate = true;
         } catch (e) {
             mat.color.set(0xff00ff);       // magenta = fallo la carga de la imagen
