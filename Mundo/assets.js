@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {MODELS_PATH} from './catalog.js';
+import { ModeloFijo } from './cargar-modelo.js';
 
 //Biblioteca de modelos
 //Si no hay modelo se reemplaza por un placeholder
@@ -102,18 +103,25 @@ export const assets = (function() {
         }
         }
 
-        Load() {
-        for (const cat of this._catalog) {
-            cat.models.forEach((file, v) => {
-            const url = MODELS_PATH + file;
-            this._loader.load(url, (gltf) => {
-                this._entries[cat.id + '|' + v] = _BuildEntry(gltf.scene);
-                this.version++;
-                console.log('[assets] cargado', url);
+        async Load() {
+            for (const cat of this._catalog) {
+                cat.models.forEach((file, v) => {
+                    const url = MODELS_PATH + file;
+                    //var modelo = ModeloFijo;
+                    //await modelo.init(url);
+                    //this._entries[cat.id + '|' + (v+1)] = _BuildEntry(modelo.modelo_base.scene);
+                    //this._entries[cat.id + '|' + v] = _BuildEntry(modelo.modelo_outline.scene.clone());
+                    //this.version++;
+                    //this.version+=2;
+                    //console.log('[assets] cargado', url);
+                    this._loader.load(url, (gltf) => {
+                    this._entries[cat.id + '|' + v] = _BuildEntry(gltf.scene);
+                    this.version++;
+                    console.log('[assets] cargado', url);
             }, undefined, () => {
                 console.warn('[assets] no se pudo cargar ' + url + ' -> se usa placeholder');
             });
-            });
+        });
         }
         }
 

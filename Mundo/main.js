@@ -200,7 +200,7 @@ class TerrainChunkManager {
 
         //Assets: biblioteca de modelos y generador de obejtos
         this._library = new assets.AssetLibrary(ASSET_CATALOG);
-        this._library.Load();
+        await this._library.Load();
         this._props = new scatter.PropScatter({
             scene: this._scene,
             library: this._library,

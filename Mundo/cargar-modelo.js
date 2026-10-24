@@ -111,3 +111,70 @@ export class Modelo {
         });
     }
 }
+
+export class ModeloFijo {
+    modelo_outline;
+    modelo_base;
+    pos;
+    posX;
+    posY;
+    posZ;
+
+    constructor() {
+        this.pos = new THREE.Vector3(0,0,0);
+    }
+
+    async init(_name) {
+        const customMaterial = new THREE.ShaderMaterial({
+            vertexShader: document.getElementById('vertexShader').textContent,
+            fragmentShader: document.getElementById('fragmentShader').textContent,
+            uniforms: {
+                uTime: { value: 0 },
+                uBaseColor: { value: new THREE.Color(0x1722D9) },
+            },
+            side: THREE.FrontSide,
+            blending: THREE.AdditiveBlending,
+            transparent: true
+        });
+
+        const loader = new GLTFLoader();
+
+        const gltfOutline = await loader.loadAsync(_name);
+        const modeloO = gltfOutline.scene;
+        
+        modeloO.traverse((obj) => {
+            if (obj instanceof THREE.Mesh) {
+                obj.material = customMaterial.clone();
+            }
+        });
+
+        this.modelo_outline = modeloO;
+        
+        //_scene.add(this.modelo_outline);
+
+
+        const gltfBase = await loader.loadAsync(_name);
+        const modeloB = gltfBase.scene;
+        modeloB.castShadow = true;
+        modeloB.receiveShadow = true;
+
+        this.modelo_base = modeloB;
+
+        //_scene.add(this.modelo_base);
+        console.log(this);
+    }
+
+    get(){
+        return(this);
+    }
+
+    update() {
+
+
+        this.modelo_outline.traverse((obj) => {
+            if (obj instanceof THREE.Mesh) {
+                obj.material.uniforms.uTime.value = 0.6;
+            }
+        });
+    }
+}
