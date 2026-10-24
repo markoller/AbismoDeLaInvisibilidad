@@ -393,28 +393,60 @@ class ProceduralTerrain_Demo extends game.Game {
             this._adelante = 0;
         });
 
-       const domElement = this._graphics._threejs.domElement;
-        if (domElement && _IS_MOBILE) {
-            const blockLeftPermanently = (e) => {
+        if (_IS_MOBILE) {
+            const activeJoystickPointers = new Set();
+
+            const trackAndBlock = (e) => {
                 const rect = zonaEl.getBoundingClientRect();
                 let clientX = null;
                 let clientY = null;
+                const pointerId = e.pointerId !== undefined ? e.pointerId : null;
 
                 if (e.clientX !== undefined) {
                     clientX = e.clientX;
                     clientY = e.clientY;
                 } else if (e.touches && e.touches.length > 0) {
-                    clientX = e.touches[0].clientX;
-                    clientY = e.touches[0].clientY;
+                    for (let i = 0; i < e.touches.length; i++) {
+                        if (e.touches[i].clientX <= window.innerWidth / 3) {
+                            clientX = e.touches[i].clientX;
+                            clientY = e.touches[i].clientY;
+                            break;
+                        }
+                    }
                 } else if (e.changedTouches && e.changedTouches.length > 0) {
                     clientX = e.changedTouches[0].clientX;
                     clientY = e.changedTouches[0].clientY;
                 }
 
-                if (clientX !== null) {
-                    if (clientX <= window.innerWidth / 3 || (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom)) {
+                const isDown = e.type === 'pointerdown' || e.type === 'touchstart';
+                const isUp = e.type === 'pointerup' || e.type === 'pointercancel' || e.type === 'touchend' || e.type === 'touchcancel';
+
+                if (isDown) {
+                    if ((clientX !== null && clientX <= window.innerWidth / 3) || 
+                        (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom)) {
+                        if (pointerId !== null) {
+                            activeJoystickPointers.add(pointerId);
+                        }
                         e.stopImmediatePropagation();
-                        e.preventDefault();
+                        e.stopPropagation();
+                        return;
+                    }
+                }
+
+                if (pointerId !== null && activeJoystickPointers.has(pointerId)) {
+                    e.stopImmediatePropagation();
+                    e.stopPropagation();
+                    if (isUp) {
+                        activeJoystickPointers.delete(pointerId);
+                    }
+                    return;
+                }
+
+                if (clientX !== null && clientX <= window.innerWidth / 3) {
+                    e.stopImmediatePropagation();
+                    e.stopPropagation();
+                    if (isUp && pointerId !== null) {
+                        activeJoystickPointers.delete(pointerId);
                     }
                 }
             };
@@ -425,7 +457,7 @@ class ProceduralTerrain_Demo extends game.Game {
             ];
 
             eventos.forEach(eventType => {
-                domElement.addEventListener(eventType, blockLeftPermanently, { capture: true, passive: false });
+                window.addEventListener(eventType, trackAndBlock, { capture: true, passive: false });
             });
         }
     }
