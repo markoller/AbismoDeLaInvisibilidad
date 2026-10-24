@@ -320,6 +320,11 @@ class ProceduralTerrain_Demo extends game.Game {
         controls.dampingFactor = 0.1;
         controls.maxPolarAngle = Math.PI / 1.5;
         controls.minPolarAngle = Math.PI / 3;
+
+         if (_IS_MOBILE) {
+            controls.enableTouch = false;
+        }
+
         controls.update();
 
         return controls;
@@ -368,23 +373,6 @@ class ProceduralTerrain_Demo extends game.Game {
         const zonaEl = document.getElementById("joystickZona");
         if (!zonaEl || typeof nipplejs === 'undefined') return;
 
-        const domElement = this._graphics._threejs.domElement;
-        if (domElement) {
-            const blockJoystickTouches = (e) => {
-                const rect = zonaEl.getBoundingClientRect();
-                
-                const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
-                const clientY = e.clientY !== undefined ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
-
-                if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
-                    e.stopImmediatePropagation();
-                }
-            };
-
-            domElement.addEventListener('pointerdown', blockJoystickTouches, { capture: true });
-            domElement.addEventListener('touchstart', blockJoystickTouches, { capture: true });
-        }
-
         const options = {
             zone: zonaEl,
             mode: "static",
@@ -404,6 +392,33 @@ class ProceduralTerrain_Demo extends game.Game {
         joyManager.on("end", () => {
             this._adelante = 0;
         });
+        
+        const domElement = this._graphics._threejs.domElement;
+        if (domElement && _IS_MOBILE) {
+            const blockCanvasLeft = (e) => {
+                let clientX = null;
+                if (e.clientX !== undefined) {
+                    clientX = e.clientX;
+                } else if (e.touches && e.touches.length > 0) {
+                    clientX = e.touches[0].clientX;
+                } else if (e.changedTouches && e.changedTouches.length > 0) {
+                    clientX = e.changedTouches[0].clientX;
+                }
+
+                if (clientX !== null && clientX <= window.innerWidth / 3) {
+                    e.stopImmediatePropagation();
+                }
+            };
+
+            const eventos = [
+                'pointerdown', 'pointermove', 'pointerup', 'pointercancel',
+                'touchstart', 'touchmove', 'touchend', 'touchcancel'
+            ];
+
+            eventos.forEach(eventType => {
+                domElement.addEventListener(eventType, blockCanvasLeft, { capture: true, passive: false });
+            });
+        }
     }
 
     _OnStep(timeInSeconds) {
