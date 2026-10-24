@@ -28,7 +28,7 @@ export async function randomSelfieUrl() {
 export const ASSET_CATALOG = [
     {
         id: 'barco', placeholder: 'barco',
-        models: ['pe_abisal.glb'],
+        models: ['barquito.glb'],
         spacing: 320, density: 0.06, size: [60, 100], sink: 0.15,
         heightRange: [0, 0.35], maxSlope: 0.35, flat: 0.3,
         avoid: {},
