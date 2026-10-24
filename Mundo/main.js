@@ -320,6 +320,11 @@ class ProceduralTerrain_Demo extends game.Game {
         controls.dampingFactor = 0.1;
         controls.maxPolarAngle = Math.PI / 1.5;
         controls.minPolarAngle = Math.PI / 3;
+
+         if (_IS_MOBILE) {
+            controls.enableTouch = false;
+        }
+
         controls.update();
 
         return controls;
@@ -368,35 +373,6 @@ class ProceduralTerrain_Demo extends game.Game {
         const zonaEl = document.getElementById("joystickZona");
         if (!zonaEl || typeof nipplejs === 'undefined') return;
 
-        const domElement = this._graphics._threejs.domElement;
-        if (domElement) {
-            // Bloqueamos OrbitControls en todo el primer tercio izquierdo de la pantalla (0% a 33%)
-            const blockLeftThird = (e) => {
-                let clientX = 0;
-                if (e.clientX !== undefined) {
-                    clientX = e.clientX;
-                } else if (e.touches && e.touches.length > 0) {
-                    clientX = e.touches[0].clientX;
-                } else if (e.changedTouches && e.changedTouches.length > 0) {
-                    clientX = e.changedTouches[0].clientX;
-                }
-
-                // Si el toque ocurre en el tercio izquierdo, detenemos el evento para que la cámara no lo tome
-                if (clientX < window.innerWidth / 3) {
-                    e.stopImmediatePropagation();
-                }
-            };
-
-            const eventos = [
-                'pointerdown', 'pointermove', 'pointerup', 'pointercancel',
-                'touchstart', 'touchmove', 'touchend', 'touchcancel'
-            ];
-
-            eventos.forEach(eventType => {
-                domElement.addEventListener(eventType, blockLeftThird, { capture: true, passive: false });
-            });
-        }
-
         const options = {
             zone: zonaEl,
             mode: "static",
@@ -416,6 +392,42 @@ class ProceduralTerrain_Demo extends game.Game {
         joyManager.on("end", () => {
             this._adelante = 0;
         });
+
+       const domElement = this._graphics._threejs.domElement;
+        if (domElement && _IS_MOBILE) {
+            const blockLeftPermanently = (e) => {
+                const rect = zonaEl.getBoundingClientRect();
+                let clientX = null;
+                let clientY = null;
+
+                if (e.clientX !== undefined) {
+                    clientX = e.clientX;
+                    clientY = e.clientY;
+                } else if (e.touches && e.touches.length > 0) {
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                } else if (e.changedTouches && e.changedTouches.length > 0) {
+                    clientX = e.changedTouches[0].clientX;
+                    clientY = e.changedTouches[0].clientY;
+                }
+
+                if (clientX !== null) {
+                    if (clientX <= window.innerWidth / 3 || (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom)) {
+                        e.stopImmediatePropagation();
+                        e.preventDefault();
+                    }
+                }
+            };
+
+            const eventos = [
+                'pointerdown', 'pointermove', 'pointerup', 'pointercancel',
+                'touchstart', 'touchmove', 'touchend', 'touchcancel'
+            ];
+
+            eventos.forEach(eventType => {
+                domElement.addEventListener(eventType, blockLeftPermanently, { capture: true, passive: false });
+            });
+        }
     }
 
     _OnStep(timeInSeconds) {
