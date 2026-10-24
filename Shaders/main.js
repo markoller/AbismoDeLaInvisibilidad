@@ -57,7 +57,11 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.update();
 
 var modelo = new Modelo();
-await modelo.init('../Modelos/pez_abisal.glb',scene,camera);
+await modelo.init('../Modelos/Pez/pez_animado.glb',scene,camera);
+//await modelo.init('../Modelos/Pez/luz.glb',scene,camera);
+//await modelo.init('../Shaders/Modelos/pez_abisal_luz.glb',scene,camera);
+//THREE.LoopRepeat
+//modelo.animaciones_base.playAnimation("fast_swim_left_baked");
 
 //Modelo del piso
 var piso = new THREE.Mesh(new THREE.PlaneGeometry(1000,1000,10,10), new THREE.MeshStandardMaterial);
@@ -68,9 +72,11 @@ scene.add(piso);
 
 function animate() {
     requestAnimationFrame(animate);
+    modelo.update();
     controls.update();
     renderer.render(scene, camera);
-    modelo.update();
+    //modelo.update();
+    //console.log("actualiza");
     //modelo.modelo_outline.material.uniforms.uTime.value = Math.random();
 }
 
