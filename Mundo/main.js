@@ -370,55 +370,20 @@ class ProceduralTerrain_Demo extends game.Game {
 
         const domElement = this._graphics._threejs.domElement;
         if (domElement) {
-            // Conjunto para rastrear los IDs de los dedos que empezaron en el joystick
-            const joystickPointers = new Set();
-
-            const blockEvent = (e) => {
-                const rect = zonaEl.getBoundingClientRect();
-                const pointerId = e.pointerId !== undefined ? e.pointerId : null;
-
-                // Extraer coordenadas de manera robusta
-                let clientX = 0, clientY = 0;
+            // Bloqueamos OrbitControls en todo el primer tercio izquierdo de la pantalla (0% a 33%)
+            const blockLeftThird = (e) => {
+                let clientX = 0;
                 if (e.clientX !== undefined) {
                     clientX = e.clientX;
-                    clientY = e.clientY;
                 } else if (e.touches && e.touches.length > 0) {
-                    const t = e.touches[0];
-                    clientX = t.clientX;
-                    clientY = t.clientY;
+                    clientX = e.touches[0].clientX;
                 } else if (e.changedTouches && e.changedTouches.length > 0) {
-                    const t = e.changedTouches[0];
-                    clientX = t.clientX;
-                    clientY = t.clientY;
+                    clientX = e.changedTouches[0].clientX;
                 }
 
-                const isDown = e.type === 'pointerdown' || e.type === 'touchstart';
-                const isUp = e.type === 'pointerup' || e.type === 'pointercancel' || e.type === 'touchend' || e.type === 'touchcancel';
-
-                if (isDown) {
-                    // Si el toque inicia dentro del área del joystick
-                    if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
-                        if (pointerId !== null) {
-                            joystickPointers.add(pointerId);
-                        }
-                        e.stopImmediatePropagation();
-                        return;
-                    }
-                } else if (pointerId !== null && joystickPointers.has(pointerId)) {
-                    // Si este dedo ya venía del joystick, bloqueamos CUALQUIER movimiento suyo (aunque salga de la caja)
+                // Si el toque ocurre en el tercio izquierdo, detenemos el evento para que la cámara no lo tome
+                if (clientX < window.innerWidth / 3) {
                     e.stopImmediatePropagation();
-                    if (isUp) {
-                        joystickPointers.delete(pointerId);
-                    }
-                    return;
-                }
-
-                // Respaldo por coordenadas en caso de toques rápidos sin pointerId directo
-                if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
-                    e.stopImmediatePropagation();
-                    if (isUp && pointerId !== null) {
-                        joystickPointers.delete(pointerId);
-                    }
                 }
             };
 
@@ -428,7 +393,7 @@ class ProceduralTerrain_Demo extends game.Game {
             ];
 
             eventos.forEach(eventType => {
-                domElement.addEventListener(eventType, blockEvent, { capture: true, passive: false });
+                domElement.addEventListener(eventType, blockLeftThird, { capture: true, passive: false });
             });
         }
 
