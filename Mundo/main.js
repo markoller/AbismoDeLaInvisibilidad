@@ -407,36 +407,70 @@ _CreateControls() {
     }
 
     _InitJoystick() {
-
         const zonaEl = document.getElementById("joystickZona");
+        if (!zonaEl) return;
 
-        if (!zonaEl || typeof nipplejs === 'undefined') return;
+        let stickEl = zonaEl.querySelector('.joystick-stick');
+        if (!stickEl) {
+            stickEl = document.createElement('div');
+            stickEl.className = 'joystick-stick';
+            zonaEl.appendChild(stickEl);
+        }
 
+        let joystickActive = false;
+        const maxRadius = 35;
 
+        zonaEl.addEventListener('pointerdown', (e) => {
+            joystickActive = true;
+            zonaEl.setPointerCapture(e.pointerId); 
+            e.stopPropagation();
+            e.preventDefault();
+            this._updateJoystickPos(e, zonaEl, stickEl, maxRadius);
+        });
 
-        const options = {
-            zone: zonaEl,
-            mode: "static",
-            position: { left: '50%', bottom: '60%' },
-            size: 125,
-            lockY: true,
-            color: "white",
+        zonaEl.addEventListener('pointermove', (e) => {
+            if (!joystickActive) return;
+            e.stopPropagation();
+            e.preventDefault();
+            this._updateJoystickPos(e, zonaEl, stickEl, maxRadius);
+        });
+
+        const stopJoystick = (e) => {
+            if (!joystickActive) return;
+            joystickActive = false;
+            this._adelante = 0;
+            
+            stickEl.style.transform = `translate(0px, 0px)`;
+            
+            if (e) {
+                try { zonaEl.releasePointerCapture(e.pointerId); } catch(err) {}
+                e.stopPropagation();
+                e.preventDefault();
+            }
         };
 
+        zonaEl.addEventListener('pointerup', stopJoystick);
+        zonaEl.addEventListener('pointercancel', stopJoystick);
+    }
 
+    _updateJoystickPos(e, container, stick, maxRadius) {
+        const rect = container.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
 
-        const joyManager = nipplejs.create(options);
+        let deltaX = e.clientX - centerX;
+        let deltaY = e.clientY - centerY;
 
-        joyManager.on("move", (evt, data) => {
-            const movAdelante = data.vector.y;
-            this._adelante = movAdelante > 0 ? Math.abs(movAdelante) : 0;
+        const distance = Math.hypot(deltaX, deltaY);
+        if (distance > maxRadius) {
+            deltaX = (deltaX / distance) * maxRadius;
+            deltaY = (deltaY / distance) * maxRadius;
+        }
 
-        });
+        stick.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
 
-        joyManager.on("end", () => {
-            this._adelante = 0;
-
-        });
+        const movAdelante = -deltaY / maxRadius; 
+        this._adelante = movAdelante > 0 ? movAdelante : 0;
     }
 
     _OnStep(timeInSeconds) {
