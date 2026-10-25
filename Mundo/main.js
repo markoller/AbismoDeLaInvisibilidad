@@ -27,7 +27,7 @@ const _CONFIG = {
     propRadius: _IS_MOBILE ? 3 : 4,
     propBudgetMs: _IS_MOBILE ? 3 : 4,
     
-    skyColour: "#0B1D3B",
+    skyColour: "#010610",
 };
 
 function _GetSeed() {
@@ -187,10 +187,10 @@ class TerrainChunkManager {
         });
 
         // Niebla: esconde el borde donde aparecen los chunks nuevos
-        const far = _CONFIG.viewRadius * size * 0.95;
+        const far = _CONFIG.viewRadius * size * 0.75;
         this._scene.background = new THREE.Color(_CONFIG.skyColour);
-        this._scene.fog = new THREE.Fog(_CONFIG.skyColour, far * 0.05, far * 0.3);
-        this._camera.far = far * 1.5;
+        this._scene.fog = new THREE.Fog(_CONFIG.skyColour, far * 0.03, far * 0.1);
+        this._camera.far = far * 1.0;
         this._camera.updateProjectionMatrix();
 
         this._chunks = {};

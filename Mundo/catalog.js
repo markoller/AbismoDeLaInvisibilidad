@@ -50,8 +50,8 @@ export const ASSET_CATALOG = [
             aspect: 0.75,
             glowRadius: 90,           // distancia (al borde de la selfie) a la que empieza a iluminarse
             glowIntensity: 0.8,       // brillo propio maximo cuando el pez esta pegado
-            baseGlow: 0.0,            // brillo propio permanente (0 = solo la luz de la escena)
-            lifetime: 30,             // segundos SEGUIDOS que el pez debe estar cerca antes de que empiece a desvanecerse
+            baseGlow: 0.10,            // brillo propio permanente (0 = solo la luz de la escena)
+            lifetime: 15,             // segundos SEGUIDOS que el pez debe estar cerca antes de que empiece a desvanecerse
             fadeSeconds: 3,           // duracion del desvanecimiento (la imagen es 'consumida' mientras el pez sigue cerca)
             recoverSeconds: 1.5,      // si el pez se va a mitad del desvanecimiento, en cuanto tarda en recuperarse
             ghostOpacity: 0.25,       // opacidad final: queda traspasable                             
