@@ -1,3 +1,4 @@
+
 //Catálogo (acá se agregan modelos)
 
 export const MODELS_PATH = '../Modelos/Assets/';
@@ -18,6 +19,17 @@ export async function randomSelfieUrl() {
     // g.fillText(String(Math.floor(Math.random() * 1000)), 150, 220);
     // return cv.toDataURL('image/png');
 
+    //Cargar imagenes de forma local
+    const res = await fetch('../Fotos/selfies.json');
+    const nombres = await res.json();
+    console.log(nombres);
+    const id = Math.round(Math.random() * (nombres.length-1));
+    console.log("ID Imagen: " + id);
+    const img = '../Fotos/' + nombres[id];
+    console.log("URL Imagen: " + img);
+    return img;
+
+    //Cargar imagenes desde la API de picsum
     const seed = Math.random().toString(36).slice(2);   
        return 'https://picsum.photos/seed/' + seed + '/300/400';
 }
@@ -28,7 +40,7 @@ export async function randomSelfieUrl() {
 export const ASSET_CATALOG = [
     {
         id: 'barco', placeholder: 'barco',
-        collide: {scale: 0.9},
+        collide: {scale: 0.6},
         models: ['barquito.glb'],
         spacing: 320, density: 0.06, size: [60, 100], sink: 0.15,
         heightRange: [0, 0.35], maxSlope: 0.35, flat: 0.3,
@@ -50,14 +62,14 @@ export const ASSET_CATALOG = [
             aspect: 0.75,
             glowRadius: 90,           // distancia (al borde de la selfie) a la que empieza a iluminarse
             glowIntensity: 0.8,       // brillo propio maximo cuando el pez esta pegado
-            baseGlow: 0.10,            // brillo propio permanente (0 = solo la luz de la escena)
+            baseGlow: 1,            // brillo propio permanente (0 = solo la luz de la escena)
             lifetime: 15,             // segundos SEGUIDOS que el pez debe estar cerca antes de que empiece a desvanecerse
             fadeSeconds: 3,           // duracion del desvanecimiento (la imagen es 'consumida' mientras el pez sigue cerca)
             recoverSeconds: 1.5,      // si el pez se va a mitad del desvanecimiento, en cuanto tarda en recuperarse
             ghostOpacity: 0.25,       // opacidad final: queda traspasable                             
             source: randomSelfieUrl,                  
         },
-        spacing: 160, density: 0.20, size: [55, 75], sink: 0.06,   
+        spacing: 60, density: 0.20, size: [55, 75], sink: 0.06,   
         heightRange: [0, 0.40], maxSlope: 0.5, flat: 0.3,
         avoid: {barco: 25, huesos: 20},
     },
@@ -72,7 +84,7 @@ export const ASSET_CATALOG = [
     },
     {
         id: 'piedra', placeholder: 'piedra',
-        collide: {scale: 0.85},
+        collide: {scale: 0.50},
         models: ['RocaSMALL.glb', 'RocaMED.glb', 'RocaBIG.glb', 'RocaMIX.glb'],
         spacing: 12, density: 0.20, size: [10, 16], sink: 0.25,
         heightRange: [0, 1.0], maxSlope: 1.2,
@@ -83,7 +95,7 @@ export const ASSET_CATALOG = [
         id: 'algas', placeholder: 'algas',
         // sin 'collide': el pez atraviesa las algas
         models: ['AlgaSMALL.glb', 'AlgaMED.glb', 'AlgaBIG.glb', 'AlgaMIX.glb'],
-        spacing: 6, density: 0.40, size: [30, 50], sink: 0.00,
+        spacing: 6, density: 0.40, size: [30, 50], sink: 0.06,
         heightRange: [0, 0.45], maxSlope: 0.6,
         patch: {scale: 80, strength: 0.9},
         avoid: {barco: 8, huesos: 6, piedra: 1.5},

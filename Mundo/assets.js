@@ -136,6 +136,7 @@ export const assets = (function() {
         return this._entries[catId + '|' + variant];
         }
 
+        //GetImageMaterial(Catalogo, key, lugar_al_que_va)
         GetImageMaterial(cat, key, pl) {
         const id = cat.id + '|' + key;
         let mat = this._imageMats.get(id);
@@ -246,6 +247,7 @@ export const assets = (function() {
         const aspect = cat.images.aspect;
         try {
             const url = await cat.images.source();
+            console.log(url);
             const tex = await this._texLoader.loadAsync(url);
             tex.colorSpace = THREE.SRGBColorSpace;
 

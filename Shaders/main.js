@@ -1,5 +1,7 @@
 //import { GLTFLoader } from 'https://unpkg.com/three@0.122.0/examples/jsm/loaders/GLTFLoader.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+//import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 //import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import  {AnimationMixer} from 'https://unpkg.com/three@0.121.1/build/three.module.js';
 import * as THREE from "three";

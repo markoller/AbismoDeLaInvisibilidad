@@ -4,6 +4,7 @@ import * as THREE from "three";
 export class Modelo {
     modelo_outline;
     modelo_base;
+    luz;
     animaciones_outline;
     nado_outline;
     animaciones_base;
@@ -73,6 +74,10 @@ export class Modelo {
 
         _scene.add(this.modelo_base);
         console.log(this);
+
+        const gltfLuz = await loader.loadAsync("../Modelos/Pez/luz.glb");
+        this.luz = gltfLuz.scene;
+        _scene.add(this.luz);
     }
 
     get(){

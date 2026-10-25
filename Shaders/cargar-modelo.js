@@ -1,19 +1,19 @@
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import * as THREE from "three";
-
 export class Modelo {
     modelo_outline;
     modelo_base;
+    luz;
     animaciones_outline;
     nado_outline;
     animaciones_base;
     nado_base;
     clock;
+    pos;
     posX;
     posY;
     posZ;
 
     constructor() {
+        this.pos = new THREE.Vector3(0,0,0);
         this.posX = 0;
         this.posY = 0;
         this.posZ = 0;
@@ -70,18 +70,32 @@ export class Modelo {
         }
 
         _scene.add(this.modelo_base);
+        console.log(this);
+
+        const gltfLuz = await loader.loadAsync("../Modelos/Pez/luz.glb");
+        this.luz = gltfLuz.scene;
+        _scene.add(this.luz);
+    }
+
+    get(){
+        return(this);
     }
 
     update() {
         const delta = this.clock.getDelta();
 
-        this.modelo_base.position.x = this.posX;
+        //this.modelo_base.position = this.pos;
+        //this.modelo_outline.quaternion.copy(this.modelo_base.quaternion.clone());
+        //this.modelo_outline.position.set(this.modelo_base.position.clone());
+
+
+        /*this.modelo_base.position.x = this.posX;
         this.modelo_base.position.y = this.posY;
         this.modelo_base.position.z = this.posZ;
 
         this.modelo_outline.position.x = this.posX;
         this.modelo_outline.position.y = this.posY;
-        this.modelo_outline.position.z = this.posZ;
+        this.modelo_outline.position.z = this.posZ;*/
 
         //this.posZ +=delta*0.65;
 
@@ -91,6 +105,73 @@ export class Modelo {
         if (this.animaciones_base) {
             this.animaciones_base.update(delta*0.65);
         }
+
+        this.modelo_outline.traverse((obj) => {
+            if (obj instanceof THREE.Mesh) {
+                obj.material.uniforms.uTime.value = 0.6;
+            }
+        });
+    }
+}
+
+export class ModeloFijo {
+    modelo_outline;
+    modelo_base;
+    pos;
+    posX;
+    posY;
+    posZ;
+
+    constructor() {
+        this.pos = new THREE.Vector3(0,0,0);
+    }
+
+    async init(_name) {
+        const customMaterial = new THREE.ShaderMaterial({
+            vertexShader: document.getElementById('vertexShader').textContent,
+            fragmentShader: document.getElementById('fragmentShader').textContent,
+            uniforms: {
+                uTime: { value: 0 },
+                uBaseColor: { value: new THREE.Color(0x1722D9) },
+            },
+            side: THREE.FrontSide,
+            blending: THREE.AdditiveBlending,
+            transparent: true
+        });
+
+        const loader = new GLTFLoader();
+
+        const gltfOutline = await loader.loadAsync(_name);
+        const modeloO = gltfOutline.scene;
+        
+        modeloO.traverse((obj) => {
+            if (obj instanceof THREE.Mesh) {
+                obj.material = customMaterial.clone();
+            }
+        });
+
+        this.modelo_outline = modeloO;
+        
+        //_scene.add(this.modelo_outline);
+
+
+        const gltfBase = await loader.loadAsync(_name);
+        const modeloB = gltfBase.scene;
+        modeloB.castShadow = true;
+        modeloB.receiveShadow = true;
+
+        this.modelo_base = modeloB;
+
+        //_scene.add(this.modelo_base);
+        console.log(this);
+    }
+
+    get(){
+        return(this);
+    }
+
+    update() {
+
 
         this.modelo_outline.traverse((obj) => {
             if (obj instanceof THREE.Mesh) {

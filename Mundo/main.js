@@ -189,7 +189,7 @@ class TerrainChunkManager {
         // Niebla: esconde el borde donde aparecen los chunks nuevos
         const far = _CONFIG.viewRadius * size * 0.75;
         this._scene.background = new THREE.Color(_CONFIG.skyColour);
-        this._scene.fog = new THREE.Fog(_CONFIG.skyColour, far * 0.03, far * 0.1);
+        this._scene.fog = new THREE.Fog(_CONFIG.skyColour, far * 0.01, far * 0.1);
         this._camera.far = far * 1.0;
         this._camera.updateProjectionMatrix();
 
@@ -372,12 +372,14 @@ _CreateControls() {
         //console.log(this._modeloPez);
         this._modeloPez.modelo_base.position.set(0, initialHeight, 0);
         this._modeloPez.modelo_outline.position.set(0, initialHeight, 0);
+        this._modeloPez.luz.position.set(0, initialHeight, 0);
         // La camara arranca detras y arriba del pez (antes quedaba en (75,20,0), dentro del terreno)
         this._controls.target.copy(this._modeloPez.modelo_base.position).add(new THREE.Vector3(0, 3, 0));
         //this._controls.target.copy(this._modeloPez.modelo_outline.position).add(new THREE.Vector3(0, 3, 0));
         this._graphics._camera.position.set(0, initialHeight + 8, 18);
         this._modeloPez.modelo_base.scale.set(20,20,20);
         this._modeloPez.modelo_outline.scale.set(20.01,20.01,20.01);
+        this._modeloPez.luz.scale.set(20,20,20);
         /*const loader = new GLTFLoader();
         loader.load(
             '../Modelos/Pez/pez_abisal.glb',   // la carpeta real es Modelos/Pez/
@@ -490,20 +492,24 @@ _CreateControls() {
         const objetivoMirada = this._modeloPez.modelo_base.position.clone().add(direccion);
         this._modeloPez.modelo_base.lookAt(objetivoMirada);
         this._modeloPez.modelo_outline.lookAt(objetivoMirada);
+        this._modeloPez.luz.lookAt(objetivoMirada);
         
         const rotacionObjetivo = this._modeloPez.modelo_base.quaternion.clone();
         this._modeloPez.modelo_base.quaternion.copy(rotacionActual);
         this._modeloPez.modelo_outline.quaternion.copy(rotacionActual);
+        this._modeloPez.luz.quaternion.copy(rotacionActual);
         
         const suavizadoRotacion = 0.1; 
         this._modeloPez.modelo_base.quaternion.slerp(rotacionObjetivo, suavizadoRotacion);
         this._modeloPez.modelo_outline.quaternion.slerp(rotacionObjetivo, suavizadoRotacion);
+        this._modeloPez.luz.quaternion.slerp(rotacionObjetivo, suavizadoRotacion);
 
         
         if (this._adelante > 0 || this._teclaAdelante) {
             const factor = this._adelante > 0 ? this._adelante : 1;
             this._modeloPez.modelo_base.position.addScaledVector(direccion, factor * velocidad * dt);
             this._modeloPez.modelo_outline.position.addScaledVector(direccion, factor * velocidad * dt);
+            this._modeloPez.luz.position.addScaledVector(direccion, factor * velocidad * dt);
         }
 
         // Colision con los assets (barco, huesos, selfies, corales, rocas; no algas).
@@ -515,6 +521,7 @@ _CreateControls() {
             const FISH_OFFSET = 2.6;      // distancia de cada circulo al centro del pez
             const pb = this._modeloPez.modelo_base.position;
             const po = this._modeloPez.modelo_outline.position;
+            const pl = this._modeloPez.luz.position;
             const fwd = this._modeloPez.modelo_base.getWorldDirection(new THREE.Vector3());
             fwd.y = 0;
             fwd.normalize();
@@ -524,6 +531,7 @@ _CreateControls() {
                 terreno.ResolveCollisions(probe, FISH_RADIUS);
                 pb.x += probe.x - antesX;  pb.z += probe.z - antesZ;
                 po.x += probe.x - antesX;  po.z += probe.z - antesZ;
+                pl.x += probe.x - antesX;  pl.z += probe.z - antesZ;
             }
             terreno.UpdateSelfies(pb, dt);
         }
@@ -540,6 +548,15 @@ _CreateControls() {
         }
         if (terreno) {
             const p = this._modeloPez.modelo_outline.position;
+            const bajo = terreno.HeightAt(p.x, p.z);
+            // mira un poco adelante para subir ANTES de llegar a una loma
+            const adelante = terreno.HeightAt(p.x + direccion.x * 15, p.z + direccion.z * 15);
+            const deseada = Math.max(bajo, adelante) + 6;           // altura "de nado"
+            p.y += (deseada - p.y) * (1 - Math.exp(-3.0 * dt));      // sube Y BAJA suavemente
+            if (p.y < bajo + 3) { p.y = bajo + 3; }                  // piso duro
+        }
+        if (terreno) {
+            const p = this._modeloPez.luz.position;
             const bajo = terreno.HeightAt(p.x, p.z);
             // mira un poco adelante para subir ANTES de llegar a una loma
             const adelante = terreno.HeightAt(p.x + direccion.x * 15, p.z + direccion.z * 15);
