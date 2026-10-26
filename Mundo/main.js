@@ -19,7 +19,7 @@ const _IS_MOBILE = window.matchMedia('(pointer: coarse)').matches ||
     Math.min(window.innerWidth, window.innerHeight) < 600;
 
 const _CONFIG = {
-    chunkSize: 256,                                 
+    chunkSize: 256,                                     
     segments: _IS_MOBILE ? 32 : 64,        
     viewRadius: _IS_MOBILE ? 4 : 6,        
     buildBudgetMs: _IS_MOBILE ? 4 : 8,     
@@ -67,8 +67,8 @@ class TerrainChunk {
     _Init() {
         const {cx, cz, size, segments, generator, colourSpline, maxHeight} = this._params;
         const step = size / segments;
-        const n = segments + 1;         
-        const m = segments + 3;         
+        const n = segments + 1;        
+        const m = segments + 3;        
         const ox = cx * size;
         const oz = cz * size;
 
@@ -291,11 +291,18 @@ class ProceduralTerrain_Demo extends game.Game {
         super();
         this._modeloPez = null;
         this._adelante = 0;
-        this._teclaAdelante = false;
+        this._girar = 0;
 
-        this._velocidadNormal = 20;     
-        this._velocidadLenta = 10;      
-        this._velocidadActual = 20;
+        this._teclaAdelante = false;
+        this._teclaIzquierda = false;
+        this._teclaDerecha = false;
+
+        this._anguloY = 0;
+        this._isUserInteracting = false;
+
+        this._velocidadNormal = 25;    
+        this._velocidadLenta = 8;     
+        this._velocidadActual = 25;
         this._speedFactor = 1.0;
     }
 
@@ -332,6 +339,14 @@ class ProceduralTerrain_Demo extends game.Game {
             controls.touches.TWO = THREE.TOUCH.DOLLY_ROTATE;
         }
 
+        // Detectar si el usuario está interactuando manualmente con la cámara
+        controls.addEventListener('start', () => {
+            this._isUserInteracting = true;
+        });
+        controls.addEventListener('end', () => {
+            this._isUserInteracting = false;
+        });
+
         controls.update();
         return controls;
     }
@@ -340,10 +355,14 @@ class ProceduralTerrain_Demo extends game.Game {
         if (!_IS_MOBILE) {
             window.addEventListener('keydown', (e) => {
                 if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') this._teclaAdelante = true;
+                if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') this._teclaIzquierda = true;
+                if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') this._teclaDerecha = true;
             });
 
             window.addEventListener('keyup', (e) => {
                 if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') this._teclaAdelante = false;
+                if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') this._teclaIzquierda = false;
+                if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') this._teclaDerecha = false;
             });
         }
     }
@@ -357,6 +376,8 @@ class ProceduralTerrain_Demo extends game.Game {
         this._modeloPez.modelo_base.position.set(0, initialHeight, 0);
         this._modeloPez.modelo_outline.position.set(0, initialHeight, 0);
         
+        this._anguloY = this._modeloPez.modelo_base.rotation.y;
+
         this._controls.target.copy(this._modeloPez.modelo_base.position).add(new THREE.Vector3(0, 3, 0));
         this._graphics._camera.position.set(0, initialHeight + 8, 18);
         
@@ -412,6 +433,7 @@ class ProceduralTerrain_Demo extends game.Game {
             if (!joystickActive) return;
             joystickActive = false;
             this._adelante = 0;
+            this._girar = 0;
             
             stickEl.style.transform = `translate(0px, 0px)`;
             
@@ -451,6 +473,9 @@ class ProceduralTerrain_Demo extends game.Game {
 
         const movAdelante = -deltaY / maxRadius; 
         this._adelante = movAdelante > 0 ? movAdelante : 0;
+
+        const movGiro = deltaX / maxRadius;
+        this._girar = Math.abs(movGiro) > 0.1 ? movGiro : 0;
     }
 
     _OnStep(timeInSeconds) {
@@ -463,6 +488,25 @@ class ProceduralTerrain_Demo extends game.Game {
 
             this._controls.target.copy(targetPos);
             this._graphics._camera.position.add(desplazamiento);
+
+            // Verificar si el pez se está moviendo o doblando
+            const pezMoviendose = _IS_MOBILE 
+                ? (this._adelante > 0 || Math.abs(this._girar) > 0) 
+                : (this._teclaAdelante || this._teclaIzquierda || this._teclaDerecha);
+
+            // Si el usuario NO está tocando la cámara manualmente Y el pez se mueve, la cámara retoma el seguimiento
+            if (!this._isUserInteracting && pezMoviendose) {
+                const direccionPez = new THREE.Vector3(0, 0, 1).applyQuaternion(this._modeloPez.modelo_base.quaternion);
+                direccionPez.y = 0;
+                direccionPez.normalize();
+
+                const distanciaCamara = 18;
+                const alturaCamara = 6;
+                const posIdeal = targetPos.clone().sub(direccionPez.multiplyScalar(distanciaCamara));
+                posIdeal.y = targetPos.y + alturaCamara;
+
+                this._graphics._camera.position.lerp(posIdeal, 4.0 * timeInSeconds);
+            }
         }
 
         this._controls.update();
@@ -493,24 +537,28 @@ class ProceduralTerrain_Demo extends game.Game {
         const velocidadSuavizado = 15.0; 
         this._velocidadActual += (velocidadObjetivo - this._velocidadActual) * (1 - Math.exp(-velocidadSuavizado * dt));
 
-        const direccion = new THREE.Vector3();
-        const camara = this._graphics._camera;
-        camara.getWorldDirection(direccion);
+        // Calcular entrada de giro (A / D, Flechas Izq / Der, o Joystick horizontal)
+        let turnInput = 0;
+        if (_IS_MOBILE) {
+            turnInput = this._girar;
+        } else {
+            if (this._teclaIzquierda) turnInput -= 1;
+            if (this._teclaDerecha) turnInput += 1;
+        }
+
+        if (turnInput !== 0) {
+            const velocidadGiro = 3.0; 
+            this._anguloY -= turnInput * velocidadGiro * dt;
+        }
+
+        // Aplicar rotación al pez
+        const rotacionObjetivo = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), this._anguloY + Math.PI);
+        this._modeloPez.modelo_base.quaternion.slerp(rotacionObjetivo, 10.0 * dt);
+        this._modeloPez.modelo_outline.quaternion.slerp(rotacionObjetivo, 10.0 * dt);
+
+        const direccion = new THREE.Vector3(0, 0, 1).applyQuaternion(this._modeloPez.modelo_base.quaternion);
         direccion.y = 0;
         direccion.normalize();
-
-        const rotacionActual = this._modeloPez.modelo_base.quaternion.clone();
-        const objetivoMirada = this._modeloPez.modelo_base.position.clone().add(direccion);
-        this._modeloPez.modelo_base.lookAt(objetivoMirada);
-        this._modeloPez.modelo_outline.lookAt(objetivoMirada);
-        
-        const rotacionObjetivo = this._modeloPez.modelo_base.quaternion.clone();
-        this._modeloPez.modelo_base.quaternion.copy(rotacionActual);
-        this._modeloPez.modelo_outline.quaternion.copy(rotacionActual);
-        
-        const suavizadoRotacion = 0.1; 
-        this._modeloPez.modelo_base.quaternion.slerp(rotacionObjetivo, suavizadoRotacion);
-        this._modeloPez.modelo_outline.quaternion.slerp(rotacionObjetivo, suavizadoRotacion);
         
         const activo = _IS_MOBILE ? (this._adelante > 0) : this._teclaAdelante;
 
@@ -543,17 +591,17 @@ class ProceduralTerrain_Demo extends game.Game {
             const p = this._modeloPez.modelo_base.position;
             const bajo = terreno.HeightAt(p.x, p.z);
             const adelanteSuelo = terreno.HeightAt(p.x + direccion.x * 15, p.z + direccion.z * 15);
-            const deseada = Math.max(bajo, adelanteSuelo) + 6;         
+            const deseada = Math.max(bajo, adelanteSuelo) + 6;        
             p.y += (deseada - p.y) * (1 - Math.exp(-3.0 * dt));      
-            if (p.y < bajo + 3) { p.y = bajo + 3; }                 
+            if (p.y < bajo + 3) { p.y = bajo + 3; }                
         }
         if (terreno) {
             const p = this._modeloPez.modelo_outline.position;
             const bajo = terreno.HeightAt(p.x, p.z);
             const adelanteSuelo = terreno.HeightAt(p.x + direccion.x * 15, p.z + direccion.z * 15);
-            const deseada = Math.max(bajo, adelanteSuelo) + 6;         
+            const deseada = Math.max(bajo, adelanteSuelo) + 6;        
             p.y += (deseada - p.y) * (1 - Math.exp(-3.0 * dt));      
-            if (p.y < bajo + 3) { p.y = bajo + 3; }                 
+            if (p.y < bajo + 3) { p.y = bajo + 3; }                
         }
 
         this._modeloPez.modelo_base.updateMatrixWorld();
