@@ -326,6 +326,7 @@ class ProceduralTerrain_Demo extends game.Game {
             this._graphics._threejs.domElement
         );
 
+        controls.enableZoom = false;
         controls.minDistance = 5;
         controls.maxDistance = 20;
         controls.enableDamping = true;
@@ -336,7 +337,7 @@ class ProceduralTerrain_Demo extends game.Game {
         if (_IS_MOBILE) {
             controls.enablePan = false;
             controls.touches.ONE = THREE.TOUCH.ROTATE;
-            controls.touches.TWO = THREE.TOUCH.DOLLY_ROTATE;
+            controls.touches.TWO = THREE.TOUCH.ROTATE;
         }
 
         // Detectar si el usuario está interactuando manualmente con la cámara
