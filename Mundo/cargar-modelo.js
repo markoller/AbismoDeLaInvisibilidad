@@ -1,6 +1,8 @@
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as THREE from "three";
 
+const intensidad_luz = 1;
+
 export class Modelo {
     modelo_outline;
     modelo_base;
@@ -77,7 +79,12 @@ export class Modelo {
 
         const gltfLuz = await loader.loadAsync("../Modelos/Pez/luz.glb");
         this.luz = gltfLuz.scene;
-        _scene.add(this.luz);
+        this.luz.traverse((obj) => {
+            if (obj.isLight) {
+                obj.intensity *= intensidad_luz;
+            }
+        });
+        this.modelo_base.add(this.luz);
     }
 
     get(){
