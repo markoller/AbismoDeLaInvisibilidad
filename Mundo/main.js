@@ -369,22 +369,25 @@ class ProceduralTerrain_Demo extends game.Game {
     }
 
     async _LoadPez() {
-        const initialHeight = this._entities['_terrain'].HeightAt(0, 0) + 12;
-        const wasd = new Modelo();
-        await wasd.init('../Modelos/Pez/pez_animado.glb', this._graphics.Scene, this._graphics._camera);
-        
-        this._modeloPez = wasd.get();
-        this._modeloPez.modelo_base.position.set(0, initialHeight, 0);
-        this._modeloPez.modelo_outline.position.set(0, initialHeight, 0);
-        
-        this._anguloY = this._modeloPez.modelo_base.rotation.y;
+    const initialHeight = this._entities['_terrain'].HeightAt(0, 0) + 12;
+    const wasd = new Modelo();
+    await wasd.init('../Modelos/Pez/pez_animado.glb', this._graphics.Scene, this._graphics._camera);
+    
+    this._modeloPez = wasd.get();
+    this._modeloPez.modelo_base.position.set(0, initialHeight, 0);
+    this._modeloPez.modelo_outline.position.set(0, initialHeight, 0);
+    
+    this._anguloY = this._modeloPez.modelo_base.rotation.y;
 
-        this._controls.target.copy(this._modeloPez.modelo_base.position).add(new THREE.Vector3(0, 3, 0));
-        this._graphics._camera.position.set(0, initialHeight + 8, 18);
-        
-        this._modeloPez.modelo_base.scale.set(20, 20, 20);
-        this._modeloPez.modelo_outline.scale.set(20.01, 20.01, 20.01);
-    }
+    this._controls.target.copy(this._modeloPez.modelo_base.position).add(new THREE.Vector3(0, 3, 0));
+    this._graphics._camera.position.set(0, initialHeight + 8, 18);
+    
+    const escalaPez = _IS_MOBILE ? 14 : 18;
+    const escalaOutline = escalaPez + 0.01;
+
+    this._modeloPez.modelo_base.scale.set(escalaPez, escalaPez, escalaPez);
+    this._modeloPez.modelo_outline.scale.set(escalaOutline, escalaOutline, escalaOutline);
+}
 
     _InitJoystick() {
         const zonaEl = document.getElementById("joystickZona");
