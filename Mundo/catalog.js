@@ -69,7 +69,7 @@ export const ASSET_CATALOG = [
             ghostOpacity: 0.25,       // opacidad final: queda traspasable                             
             source: randomSelfieUrl,                  
         },
-        spacing: 60, density: 0.20, size: [55, 75], sink: 0.06,   
+        spacing: 80, density: 0.20, size: [35, 55], sink: 0.06,   
         heightRange: [0, 0.40], maxSlope: 0.5, flat: 0.3,
         avoid: {barco: 25, huesos: 20},
     },
