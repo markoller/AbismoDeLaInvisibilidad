@@ -116,6 +116,40 @@ export const scatter = (function() {
         }
         }
 
+        GetImageSpeedFactor(pos, slowRadius) {
+            if (this._cats.length === 0) return 1.0;
+            const cs = this._chunkSize;
+            let minFactor = 1.0;
+
+            const cx0 = Math.floor((pos.x - slowRadius) / cs);
+            const cx1 = Math.floor((pos.x + slowRadius) / cs);
+            const cz0 = Math.floor((pos.z - slowRadius) / cs);
+            const cz1 = Math.floor((pos.z + slowRadius) / cs);
+
+            for (const cat of this._cats) {
+                if (!cat.images) continue;
+                for (let cz = cz0; cz <= cz1; cz++) {
+                    for (let cx = cx0; cx <= cx1; cx++) {
+                        for (const pl of this._NearPlacements(cat, cx, cz)) {
+                            if (this._library.IsImageGhost && this._library.IsImageGhost(cat, pl)) continue;
+
+                            const dx = pos.x - pl.x;
+                            const dz = pos.z - pl.z;
+                            const dist = Math.hypot(dx, dz);
+
+                            if (dist < slowRadius) {
+                                const factor = Math.max(0.1, dist / slowRadius);
+                                if (factor < minFactor) {
+                                    minFactor = factor;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return minFactor;
+        }
+
         // Objetos de una categoria en un chunk (cacheado; no depende de lo que este dibujado)
         _NearPlacements(cat, cx, cz) {
         const key = cx + '.' + cz + '.' + cat.id;
@@ -237,7 +271,7 @@ export const scatter = (function() {
             }
             }
         }
-        this._tasks.sort((a, b) => b.d - a.d);     
+        this._tasks.sort((a, b) => b.d - a.d);    
         }
     
         Update(cx, cz) {

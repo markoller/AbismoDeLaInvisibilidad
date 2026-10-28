@@ -14,19 +14,17 @@ import {Modelo} from './cargar-modelo.js';
 
 let _APP = null;
 
-//Configuraciones
-
+// Configuraciones responsive y del mundo
 const _IS_MOBILE = window.matchMedia('(pointer: coarse)').matches ||
     Math.min(window.innerWidth, window.innerHeight) < 600;
 
 const _CONFIG = {
-    chunkSize: 256,                                    
+    chunkSize: 256,                                     
     segments: _IS_MOBILE ? 32 : 64,        
     viewRadius: _IS_MOBILE ? 4 : 6,        
     buildBudgetMs: _IS_MOBILE ? 4 : 8,     
     propRadius: _IS_MOBILE ? 3 : 4,
     propBudgetMs: _IS_MOBILE ? 3 : 4,
-    
     skyColour: "#010610",
 };
 
@@ -57,8 +55,7 @@ const _NOISE_PARAMS = {
     seed: _GetSeed(),
 };
 
-//Chunk
-
+// Chunk de Terreno
 const _ROCK = new THREE.Color(0x2f3a40);
 
 class TerrainChunk {
@@ -70,81 +67,77 @@ class TerrainChunk {
     _Init() {
         const {cx, cz, size, segments, generator, colourSpline, maxHeight} = this._params;
         const step = size / segments;
-        const n = segments + 1;           // vertices por lado
-        const m = segments + 3;           // alturas por lado, con 1 vertice de borde
+        const n = segments + 1;        
+        const m = segments + 3;        
         const ox = cx * size;
         const oz = cz * size;
 
-    // 1) Alturas (incluyendo borde, para calcular normales sin costuras entre chunks).
         const heights = new Float32Array(m * m);
         for (let j = 0; j < m; j++) {
             for (let i = 0; i < m; i++) {
                 heights[j * m + i] = generator.Get(ox + (i - 1) * step, oz + (j - 1) * step);
+            }
         }
-    }
 
-    // 2) Vertices, normales y colores
-    const positions = new Float32Array(n * n * 3);
-    const normals = new Float32Array(n * n * 3);
-    const colours = new Float32Array(n * n * 3);
-    const tmp = new THREE.Color();
+        const positions = new Float32Array(n * n * 3);
+        const normals = new Float32Array(n * n * 3);
+        const colours = new Float32Array(n * n * 3);
+        const tmp = new THREE.Color();
 
-    for (let j = 0; j < n; j++) {
-        for (let i = 0; i < n; i++) {
-            const h = heights[(j + 1) * m + (i + 1)];
-            const hL = heights[(j + 1) * m + i];
-            const hR = heights[(j + 1) * m + i + 2];
-            const hD = heights[j * m + (i + 1)];
-            const hU = heights[(j + 2) * m + (i + 1)];
+        for (let j = 0; j < n; j++) {
+            for (let i = 0; i < n; i++) {
+                const h = heights[(j + 1) * m + (i + 1)];
+                const hL = heights[(j + 1) * m + i];
+                const hR = heights[(j + 1) * m + i + 2];
+                const hD = heights[j * m + (i + 1)];
+                const hU = heights[(j + 2) * m + (i + 1)];
 
-            let nx = hL - hR;
-            let ny = 2.0 * step;
-            let nz = hD - hU;
-            const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
-            nx /= len; ny /= len; nz /= len;
+                let nx = hL - hR;
+                let ny = 2.0 * step;
+                let nz = hD - hU;
+                const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+                nx /= len; ny /= len; nz /= len;
 
-            const idx = (j * n + i) * 3;
-            positions[idx] = i * step;
-            positions[idx + 1] = h;
-            positions[idx + 2] = j * step;
-            normals[idx] = nx;
-            normals[idx + 1] = ny;
-            normals[idx + 2] = nz;
+                const idx = (j * n + i) * 3;
+                positions[idx] = i * step;
+                positions[idx + 1] = h;
+                positions[idx + 2] = j * step;
+                normals[idx] = nx;
+                normals[idx + 1] = ny;
+                normals[idx + 2] = nz;
 
-            // Color por altura (spline) + roca en pendientes fuertes
-            tmp.copy(colourSpline.Get(h / maxHeight));
-            const steep = math.sat((0.8 - ny) / 0.25);
-            tmp.lerp(_ROCK, steep);
-            colours[idx] = tmp.r;
-            colours[idx + 1] = tmp.g;
-            colours[idx + 2] = tmp.b;
+                tmp.copy(colourSpline.Get(h / maxHeight));
+                const steep = math.sat((0.8 - ny) / 0.25);
+                tmp.lerp(_ROCK, steep);
+                colours[idx] = tmp.r;
+                colours[idx + 1] = tmp.g;
+                colours[idx + 2] = tmp.b;
+            }
         }
-    }
 
-    // 3) Indices (triangulos con cara hacia +Y)
-    const indices = new (n * n > 65535 ? Uint32Array : Uint16Array)(segments * segments * 6);
-    let k = 0;
-    for (let j = 0; j < segments; j++) {
-        for (let i = 0; i < segments; i++) {
-            const a = j * n + i;
-            const b = a + 1;
-            const c = a + n;
-            const d = c + 1;
-            indices[k++] = a; indices[k++] = c; indices[k++] = b;
-            indices[k++] = b; indices[k++] = c; indices[k++] = d;
+        const indices = new (n * n > 65535 ? Uint32Array : Uint16Array)(segments * segments * 6);
+        let k = 0;
+        for (let j = 0; j < segments; j++) {
+            for (let i = 0; i < segments; i++) {
+                const a = j * n + i;
+                const b = a + 1;
+                const c = a + n;
+                const d = c + 1;
+                indices[k++] = a; indices[k++] = c; indices[k++] = b;
+                indices[k++] = b; indices[k++] = c; indices[k++] = d;
+            }
         }
-    }
 
-    const geometry = new THREE.BufferGeometry();
-    geometry.setIndex(new THREE.BufferAttribute(indices, 1));
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
-    geometry.setAttribute('color', new THREE.BufferAttribute(colours, 3));
-    geometry.computeBoundingSphere();
+        const geometry = new THREE.BufferGeometry();
+        geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colours, 3));
+        geometry.computeBoundingSphere();
 
-    this._mesh = new THREE.Mesh(geometry, this._params.material);
-    this._mesh.position.set(ox, 0, oz);
-    this._params.scene.add(this._mesh);
+        this._mesh = new THREE.Mesh(geometry, this._params.material);
+        this._mesh.position.set(ox, 0, oz);
+        this._params.scene.add(this._mesh);
     }
 
     Destroy() {
@@ -152,8 +145,6 @@ class TerrainChunk {
         this._mesh.geometry.dispose();  
     }
 }
-
-// Crear y destruir chunks
 
 class TerrainChunkManager {
     constructor(params) {
@@ -166,30 +157,27 @@ class TerrainChunkManager {
     async _Init() {
         const size = _CONFIG.chunkSize;
 
-        // Perlin Noise
         this._generator = new noise.Noise(_NOISE_PARAMS);
         console.log('Seed del mundo:', _NOISE_PARAMS.seed);
 
-        // Colores
         const _colourLerp = (t, p0, p1) => p0.clone().lerp(p1, t);
         this._colourSpline = new spline.LinearSpline(_colourLerp);
-        this._colourSpline.AddPoint(0.00, new THREE.Color("#273238"));  // fondo
-        this._colourSpline.AddPoint(0.06, new THREE.Color("#2E3431"));  // sedimento
-        this._colourSpline.AddPoint(0.30, new THREE.Color("#253D44"));  // medio
-        this._colourSpline.AddPoint(0.55, new THREE.Color("#2F3F3A"));  // roca oscura
-        this._colourSpline.AddPoint(0.75, new THREE.Color("#3F4B51"));  // punta más alta
+        this._colourSpline.AddPoint(0.00, new THREE.Color("#273238"));  
+        this._colourSpline.AddPoint(0.06, new THREE.Color("#2E3431"));  
+        this._colourSpline.AddPoint(0.30, new THREE.Color("#253D44"));  
+        this._colourSpline.AddPoint(0.55, new THREE.Color("#2F3F3A"));  
+        this._colourSpline.AddPoint(0.75, new THREE.Color("#3F4B51"));  
 
         this._material = new THREE.MeshStandardMaterial({
-        color: 0xFFFFFF,
-        vertexColors: true,
-        roughness: 1.0,
-        metalness: 0.0,
+            color: 0xFFFFFF,
+            vertexColors: true,
+            roughness: 1.0,
+            metalness: 0.0,
         });
 
-        // Niebla: esconde el borde donde aparecen los chunks nuevos
         const far = _CONFIG.viewRadius * size * 0.75;
         this._scene.background = new THREE.Color(_CONFIG.skyColour);
-        this._scene.fog = new THREE.Fog(_CONFIG.skyColour, far * 0.01, far * 0.1);
+        this._scene.fog = new THREE.Fog(_CONFIG.skyColour, far * 0.03, far * 0.1);
         this._camera.far = far * 1.0;
         this._camera.updateProjectionMatrix();
 
@@ -198,7 +186,6 @@ class TerrainChunkManager {
         this._cx = null;
         this._cz = null;
 
-        //Assets: biblioteca de modelos y generador de obejtos
         this._library = new assets.AssetLibrary(ASSET_CATALOG);
         await this._library.Load();
         this._props = new scatter.PropScatter({
@@ -221,40 +208,39 @@ class TerrainChunkManager {
     _Refresh() {
         const R = _CONFIG.viewRadius;
 
-        // Destruir chunks lejanos
         for (let k in this._chunks) {
-        const c = this._chunks[k];
-        if (Math.hypot(c.cx - this._cx, c.cz - this._cz) > R + 1.5) {
-            c.chunk.Destroy();
-            delete this._chunks[k];
-        }
+            const c = this._chunks[k];
+            if (Math.hypot(c.cx - this._cx, c.cz - this._cz) > R + 1.5) {
+                c.chunk.Destroy();
+                delete this._chunks[k];
+            }
         }
 
         this._pending = [];
         for (let dx = -R; dx <= R; dx++) {
-        for (let dz = -R; dz <= R; dz++) {
-            const d = Math.hypot(dx, dz);
-            const x = this._cx + dx;
-            const z = this._cz + dz;
-            if (d <= R && !(this._Key(x, z) in this._chunks)) {
-            this._pending.push({cx: x, cz: z, d: d});
+            for (let dz = -R; dz <= R; dz++) {
+                const d = Math.hypot(dx, dz);
+                const x = this._cx + dx;
+                const z = this._cz + dz;
+                if (d <= R && !(this._Key(x, z) in this._chunks)) {
+                    this._pending.push({cx: x, cz: z, d: d});
+                }
             }
-        }
         }
         this._pending.sort((a, b) => b.d - a.d);
     }
 
     _AddChunk(cx, cz) {
         const chunk = new TerrainChunk({
-        scene: this._scene,
-        material: this._material,
-        generator: this._generator,
-        colourSpline: this._colourSpline,
-        maxHeight: _NOISE_PARAMS.height,
-        cx: cx,
-        cz: cz,
-        size: _CONFIG.chunkSize,
-        segments: _CONFIG.segments,
+            scene: this._scene,
+            material: this._material,
+            generator: this._generator,
+            colourSpline: this._colourSpline,
+            maxHeight: _NOISE_PARAMS.height,
+            cx: cx,
+            cz: cz,
+            size: _CONFIG.chunkSize,
+            segments: _CONFIG.segments,
         });
         this._chunks[this._Key(cx, cz)] = {chunk: chunk, cx: cx, cz: cz};
     }
@@ -263,12 +249,10 @@ class TerrainChunkManager {
         return this._generator.Get(x, z);
     }
 
-    // Saca 'pos' de los assets que colisionan (todos menos los que no tengan 'collide')
     ResolveCollisions(pos, radius) {
         this._props.Collide(pos, radius);
     }
 
-    // Brillo y desvanecimiento de las selfies segun donde esta el pez
     UpdateSelfies(pos, dt) {
         this._props.UpdateSelfies(pos, dt);
     }
@@ -293,29 +277,41 @@ class TerrainChunkManager {
         }
 
         const f = this._focus ? this._focus() : p;
-        //await new Promise(r => setTimeout(r, 2000));
-
         this._props.Update(Math.floor(f.x / _CONFIG.chunkSize), Math.floor(f.z / _CONFIG.chunkSize));
+    }
+
+    GetImageSpeedFactor(pos, slowRadius) {
+        return this._props.GetImageSpeedFactor(pos, slowRadius);
     }
 }
 
-//App (movimiento del pez y sincronización de cámara)
-
+// Clase Principal de la Demo
 class ProceduralTerrain_Demo extends game.Game {
     constructor() {
         super();
         this._modeloPez = null;
         this._adelante = 0;
+        this._girar = 0;
+
         this._teclaAdelante = false;
+        this._teclaIzquierda = false;
+        this._teclaDerecha = false;
+
+        this._anguloY = 0;
+        this._isUserInteracting = false;
+
+        this._velocidadNormal = 25;    
+        this._velocidadLenta = 8;     
+        this._velocidadActual = 25;
+        this._speedFactor = 1.0;
     }
 
-   async _OnInitialize() {
+    async _OnInitialize() {
         this._controls = this._CreateControls();
 
         this._entities['_terrain'] = new TerrainChunkManager({
             scene: this._graphics.Scene,
             camera: this._graphics.Camera,
-            
             focus: () => (this._modeloPez ? this._modeloPez.modelo_base.position : this._controls.target),
         });
 
@@ -324,93 +320,90 @@ class ProceduralTerrain_Demo extends game.Game {
         this._InitJoystick();
     }
 
-    
+    _CreateControls() {
+        const controls = new OrbitControls(
+            this._graphics._camera,
+            this._graphics._threejs.domElement
+        );
 
-_CreateControls() {
-    const controls = new OrbitControls(
-        this._graphics._camera,
-        this._graphics._threejs.domElement
-    );
+        controls.enableZoom = false;
+        controls.minDistance = 5;
+        controls.maxDistance = 20;
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.1;
+        controls.maxPolarAngle = Math.PI / 1.5;
+        controls.minPolarAngle = Math.PI / 3;
 
-    controls.minDistance = 5;
-    controls.maxDistance = 20;
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.1;
-    controls.maxPolarAngle = Math.PI / 1.5;
-    controls.minPolarAngle = Math.PI / 3;
+        if (_IS_MOBILE) {
+            controls.enablePan = false;
+            controls.touches.ONE = THREE.TOUCH.ROTATE;
+            controls.touches.TWO = THREE.TOUCH.ROTATE;
+        }
 
-    if (_IS_MOBILE) {
-        controls.enablePan = false;
-        controls.touches.ONE = THREE.TOUCH.ROTATE;
-        controls.touches.TWO = THREE.TOUCH.DOLLY_ROTATE;
+        // Detectar si el usuario está interactuando manualmente con la cámara
+        controls.addEventListener('start', () => {
+            this._isUserInteracting = true;
+        });
+        controls.addEventListener('end', () => {
+            this._isUserInteracting = false;
+        });
+
+        controls.update();
+        return controls;
     }
-
-    controls.update();
-    return controls;
-}
-
-
 
     _InitInput() {
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') this._teclaAdelante = true;
-        });
+        if (!_IS_MOBILE) {
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') this._teclaAdelante = true;
+                if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') this._teclaIzquierda = true;
+                if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') this._teclaDerecha = true;
+            });
 
-        window.addEventListener('keyup', (e) => {
-            if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') this._teclaAdelante = false;
-        });
+            window.addEventListener('keyup', (e) => {
+                if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') this._teclaAdelante = false;
+                if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') this._teclaIzquierda = false;
+                if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') this._teclaDerecha = false;
+            });
+        }
     }
 
-   
     async _LoadPez() {
         const initialHeight = this._entities['_terrain'].HeightAt(0, 0) + 12;
-        this._modeloPez = new Modelo();
-        var wasd = new Modelo();
-        //await this._modeloPez.init('../Modelos/Pez/pez_animado.glb',this._graphics.Scene,this._graphics._camera);
-        await wasd.init('../Modelos/Pez/pez_animado.glb',this._graphics.Scene,this._graphics._camera);
+        const wasd = new Modelo();
+        await wasd.init('../Modelos/Pez/pez_animado.glb', this._graphics.Scene, this._graphics._camera);
+        
         this._modeloPez = wasd.get();
-        //console.log(this._modeloPez);
         this._modeloPez.modelo_base.position.set(0, initialHeight, 0);
         this._modeloPez.modelo_outline.position.set(0, initialHeight, 0);
-        this._modeloPez.luz.position.set(0, initialHeight, 0);
-        // La camara arranca detras y arriba del pez (antes quedaba en (75,20,0), dentro del terreno)
+        
+        this._anguloY = this._modeloPez.modelo_base.rotation.y;
+
         this._controls.target.copy(this._modeloPez.modelo_base.position).add(new THREE.Vector3(0, 3, 0));
-        //this._controls.target.copy(this._modeloPez.modelo_outline.position).add(new THREE.Vector3(0, 3, 0));
         this._graphics._camera.position.set(0, initialHeight + 8, 18);
-        this._modeloPez.modelo_base.scale.set(20,20,20);
-        this._modeloPez.modelo_outline.scale.set(20.01,20.01,20.01);
-        this._modeloPez.luz.scale.set(20,20,20);
-        /*const loader = new GLTFLoader();
-        loader.load(
-            '../Modelos/Pez/pez_abisal.glb',   // la carpeta real es Modelos/Pez/
-            (gltf) => {
-                this._modeloPez = gltf.scene;
-                const initialHeight = this._entities['_terrain'].HeightAt(0, 0) + 12;
-                this._modeloPez.position.set(0, initialHeight, 0);
-                this._graphics.Scene.add(this._modeloPez);
-
-                // La camara arranca detras y arriba del pez (antes quedaba en (75,20,0), dentro del terreno)
-                this._controls.target.copy(this._modeloPez.position).add(new THREE.Vector3(0, 3, 0));
-                this._graphics._camera.position.set(0, initialHeight + 8, 18);
-            },
-            undefined,
-            (error) => {
-                console.error('Error al cargar el modelo:', error);
-            }
-        );*/
-
-        setTimeout(() => {
-            const zonaJoystick = document.getElementById("joystickZona");
-            if (zonaJoystick) {
-                zonaJoystick.style.transition = "opacity 1s ease";
-                zonaJoystick.style.opacity = "0";
-            }
-        }, 15000);
+        
+        this._modeloPez.modelo_base.scale.set(20, 20, 20);
+        this._modeloPez.modelo_outline.scale.set(20.01, 20.01, 20.01);
     }
 
     _InitJoystick() {
         const zonaEl = document.getElementById("joystickZona");
         if (!zonaEl) return;
+
+        const checkMobileAndToggle = () => {
+            const isMobileCurrent = window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 600;
+            
+            if (!isMobileCurrent) {
+                zonaEl.style.display = "none";
+                return;
+            }
+            
+            zonaEl.style.display = "flex";
+        };
+
+        checkMobileAndToggle();
+
+        window.addEventListener('resize', checkMobileAndToggle);
 
         let stickEl = zonaEl.querySelector('.joystick-stick');
         if (!stickEl) {
@@ -441,6 +434,7 @@ _CreateControls() {
             if (!joystickActive) return;
             joystickActive = false;
             this._adelante = 0;
+            this._girar = 0;
             
             stickEl.style.transform = `translate(0px, 0px)`;
             
@@ -453,6 +447,13 @@ _CreateControls() {
 
         zonaEl.addEventListener('pointerup', stopJoystick);
         zonaEl.addEventListener('pointercancel', stopJoystick);
+
+        setTimeout(() => {
+            if (zonaEl) {
+                zonaEl.style.transition = "opacity 1s ease";
+                zonaEl.style.opacity = "0";
+            }
+        }, 15000);
     }
 
     _updateJoystickPos(e, container, stick, maxRadius) {
@@ -473,34 +474,44 @@ _CreateControls() {
 
         const movAdelante = -deltaY / maxRadius; 
         this._adelante = movAdelante > 0 ? movAdelante : 0;
+
+        const movGiro = deltaX / maxRadius;
+        this._girar = Math.abs(movGiro) > 0.1 ? movGiro : 0;
     }
 
     _OnStep(timeInSeconds) {
-        // 1. Actualizamos el movimiento y la posición del pez y del terreno
         this._UpdatePersonaje(timeInSeconds);
 
-        // (el terreno ya se actualiza en game.js -> _StepEntities; llamarlo aca lo duplicaba)
-
-        // 2. Sincronizamos ÚNICAMENTE el objetivo (target) de la cámara con el pez.
-        // Al NO tocar camara.position manualmente, permites que OrbitControls 
-        // mantenga la libertad de movimiento que el usuario haga con el mouse/touch.
         if (this._modeloPez && this._controls) {
-            //this._modeloPez.update();
-            const offsetVertical = new THREE.Vector3(0, 3.0, 0); // Ajusta la altura del foco si lo deseas
+            const offsetVertical = new THREE.Vector3(0, 3.0, 0);
             const targetPos = this._modeloPez.modelo_base.position.clone().add(offsetVertical);
-            
-            // Calculamos cuánto se ha movido el pez desde el frame anterior
             const desplazamiento = targetPos.clone().sub(this._controls.target);
 
-            // Movemos tanto la cámara como el objetivo esa misma distancia (permite que la cámara "arrastre" su posición al avanzar)
             this._controls.target.copy(targetPos);
             this._graphics._camera.position.add(desplazamiento);
+
+            // Verificar si el pez se está moviendo o doblando
+            const pezMoviendose = _IS_MOBILE 
+                ? (this._adelante > 0 || Math.abs(this._girar) > 0) 
+                : (this._teclaAdelante || this._teclaIzquierda || this._teclaDerecha);
+
+            // Si el usuario NO está tocando la cámara manualmente Y el pez se mueve, la cámara retoma el seguimiento
+            if (!this._isUserInteracting && pezMoviendose) {
+                const direccionPez = new THREE.Vector3(0, 0, 1).applyQuaternion(this._modeloPez.modelo_base.quaternion);
+                direccionPez.y = 0;
+                direccionPez.normalize();
+
+                const distanciaCamara = 18;
+                const alturaCamara = 6;
+                const posIdeal = targetPos.clone().sub(direccionPez.multiplyScalar(distanciaCamara));
+                posIdeal.y = targetPos.y + alturaCamara;
+
+                this._graphics._camera.position.lerp(posIdeal, 4.0 * timeInSeconds);
+            }
         }
 
-        // 3. Actualizamos los controles para aplicar el amortiguamiento (damping) y la interacción del usuario
         this._controls.update();
 
-        // 4. Seguridad anti-subsuelo para la cámara
         const terreno = this._entities['_terrain'];
         if (terreno) {
             const cam = this._graphics._camera.position;
@@ -514,48 +525,55 @@ _CreateControls() {
     _UpdatePersonaje(dt) {
         if (!this._modeloPez) return;
 
-        const velocidad = 20;
-        const direccion = new THREE.Vector3();
-
-        const camara = this._graphics._camera;
-        camara.getWorldDirection(direccion);
-        direccion.y = 0;
-        direccion.normalize();
-
-        const rotacionActual = this._modeloPez.modelo_base.quaternion.clone();
-        const objetivoMirada = this._modeloPez.modelo_base.position.clone().add(direccion);
-        this._modeloPez.modelo_base.lookAt(objetivoMirada);
-        this._modeloPez.modelo_outline.lookAt(objetivoMirada);
-        this._modeloPez.luz.lookAt(objetivoMirada);
-        
-        const rotacionObjetivo = this._modeloPez.modelo_base.quaternion.clone();
-        this._modeloPez.modelo_base.quaternion.copy(rotacionActual);
-        this._modeloPez.modelo_outline.quaternion.copy(rotacionActual);
-        this._modeloPez.luz.quaternion.copy(rotacionActual);
-        
-        const suavizadoRotacion = 0.1; 
-        this._modeloPez.modelo_base.quaternion.slerp(rotacionObjetivo, suavizadoRotacion);
-        this._modeloPez.modelo_outline.quaternion.slerp(rotacionObjetivo, suavizadoRotacion);
-        this._modeloPez.luz.quaternion.slerp(rotacionObjetivo, suavizadoRotacion);
-
-        
-        if (this._adelante > 0 || this._teclaAdelante) {
-            const factor = this._adelante > 0 ? this._adelante : 1;
-            this._modeloPez.modelo_base.position.addScaledVector(direccion, factor * velocidad * dt);
-            this._modeloPez.modelo_outline.position.addScaledVector(direccion, factor * velocidad * dt);
-            this._modeloPez.luz.position.addScaledVector(direccion, factor * velocidad * dt);
+        const pb = this._modeloPez.modelo_base.position;
+        const terreno = this._entities['_terrain'];
+        let factorProximidad = 1.0;
+        if (terreno && terreno.GetImageSpeedFactor) {
+            const radioFrenado = 80; 
+            factorProximidad = terreno.GetImageSpeedFactor(pb, radioFrenado);
         }
 
-        // Colision con los assets (barco, huesos, selfies, corales, rocas; no algas).
-        // El pez es largo y angosto: se prueban dos circulos, uno hacia la cabeza y otro
-        // hacia la cola, y cada empuje mueve al pez (y a su contorno) por igual.
-        const terreno = this._entities['_terrain'];
+        const velocidadObjetivo = THREE.MathUtils.lerp(this._velocidadLenta, this._velocidadNormal, factorProximidad);
+
+        const velocidadSuavizado = 15.0; 
+        this._velocidadActual += (velocidadObjetivo - this._velocidadActual) * (1 - Math.exp(-velocidadSuavizado * dt));
+
+        // Calcular entrada de giro (A / D, Flechas Izq / Der, o Joystick horizontal)
+        let turnInput = 0;
+        if (_IS_MOBILE) {
+            turnInput = this._girar;
+        } else {
+            if (this._teclaIzquierda) turnInput -= 1;
+            if (this._teclaDerecha) turnInput += 1;
+        }
+
+        if (turnInput !== 0) {
+            const velocidadGiro = 3.0; 
+            this._anguloY -= turnInput * velocidadGiro * dt;
+        }
+
+        // Aplicar rotación al pez
+        const rotacionObjetivo = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), this._anguloY + Math.PI);
+        this._modeloPez.modelo_base.quaternion.slerp(rotacionObjetivo, 10.0 * dt);
+        this._modeloPez.modelo_outline.quaternion.slerp(rotacionObjetivo, 10.0 * dt);
+
+        const direccion = new THREE.Vector3(0, 0, 1).applyQuaternion(this._modeloPez.modelo_base.quaternion);
+        direccion.y = 0;
+        direccion.normalize();
+        
+        const activo = _IS_MOBILE ? (this._adelante > 0) : this._teclaAdelante;
+
+        if (activo) {
+            const factor = _IS_MOBILE ? this._adelante : 1;
+            this._modeloPez.modelo_base.position.addScaledVector(direccion, factor * this._velocidadActual * dt);
+            this._modeloPez.modelo_outline.position.addScaledVector(direccion, factor * this._velocidadActual * dt);
+        }
+
+        // Colisiones con assets del terreno
         if (terreno) {
-            const FISH_RADIUS = 1.8;      // radio de cada circulo
-            const FISH_OFFSET = 2.6;      // distancia de cada circulo al centro del pez
-            const pb = this._modeloPez.modelo_base.position;
+            const FISH_RADIUS = 1.8;      
+            const FISH_OFFSET = 2.6;      
             const po = this._modeloPez.modelo_outline.position;
-            const pl = this._modeloPez.luz.position;
             const fwd = this._modeloPez.modelo_base.getWorldDirection(new THREE.Vector3());
             fwd.y = 0;
             fwd.normalize();
@@ -565,46 +583,31 @@ _CreateControls() {
                 terreno.ResolveCollisions(probe, FISH_RADIUS);
                 pb.x += probe.x - antesX;  pb.z += probe.z - antesZ;
                 po.x += probe.x - antesX;  po.z += probe.z - antesZ;
-                pl.x += probe.x - antesX;  pl.z += probe.z - antesZ;
             }
             terreno.UpdateSelfies(pb, dt);
         }
 
-       //distancia del pez con el suelo
+        // Altura del pez respecto al suelo
         if (terreno) {
             const p = this._modeloPez.modelo_base.position;
             const bajo = terreno.HeightAt(p.x, p.z);
-            // mira un poco adelante para subir ANTES de llegar a una loma
-            const adelante = terreno.HeightAt(p.x + direccion.x * 15, p.z + direccion.z * 15);
-            const deseada = Math.max(bajo, adelante) + 6;           // altura "de nado"
-            p.y += (deseada - p.y) * (1 - Math.exp(-3.0 * dt));      // sube Y BAJA suavemente
-            if (p.y < bajo + 3) { p.y = bajo + 3; }                  // piso duro
+            const adelanteSuelo = terreno.HeightAt(p.x + direccion.x * 15, p.z + direccion.z * 15);
+            const deseada = Math.max(bajo, adelanteSuelo) + 6;        
+            p.y += (deseada - p.y) * (1 - Math.exp(-3.0 * dt));      
+            if (p.y < bajo + 3) { p.y = bajo + 3; }                
         }
         if (terreno) {
             const p = this._modeloPez.modelo_outline.position;
             const bajo = terreno.HeightAt(p.x, p.z);
-            // mira un poco adelante para subir ANTES de llegar a una loma
-            const adelante = terreno.HeightAt(p.x + direccion.x * 15, p.z + direccion.z * 15);
-            const deseada = Math.max(bajo, adelante) + 6;           // altura "de nado"
-            p.y += (deseada - p.y) * (1 - Math.exp(-3.0 * dt));      // sube Y BAJA suavemente
-            if (p.y < bajo + 3) { p.y = bajo + 3; }                  // piso duro
-        }
-        if (terreno) {
-            const p = this._modeloPez.luz.position;
-            const bajo = terreno.HeightAt(p.x, p.z);
-            // mira un poco adelante para subir ANTES de llegar a una loma
-            const adelante = terreno.HeightAt(p.x + direccion.x * 15, p.z + direccion.z * 15);
-            const deseada = Math.max(bajo, adelante) + 6;           // altura "de nado"
-            p.y += (deseada - p.y) * (1 - Math.exp(-3.0 * dt));      // sube Y BAJA suavemente
-            if (p.y < bajo + 3) { p.y = bajo + 3; }                  // piso duro
+            const adelanteSuelo = terreno.HeightAt(p.x + direccion.x * 15, p.z + direccion.z * 15);
+            const deseada = Math.max(bajo, adelanteSuelo) + 6;        
+            p.y += (deseada - p.y) * (1 - Math.exp(-3.0 * dt));      
+            if (p.y < bajo + 3) { p.y = bajo + 3; }                
         }
 
         this._modeloPez.modelo_base.updateMatrixWorld();
-        this._modeloPez.modelo_base.updateMatrixWorld();
+        this._modeloPez.modelo_outline.updateMatrixWorld();
         this._modeloPez.update();
-        //this._modeloPez.modelo_outline.quaternion.copy(this._modeloPez.modelo_base.quaternion.clone());
-        //this._modeloPez.modelo_outline.position.set(this._modeloPez.modelo_base.position);
-        //this._modeloPez.modelo_outline.updateMatrixWorld();
     }
 }
 
