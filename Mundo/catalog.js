@@ -56,7 +56,7 @@ export const ASSET_CATALOG = [
     },*/
     {
         id: 'selfies', placeholder: 'selfies',
-        collide: {scale: 1.0},
+        collide: {scale: 0.75},
         models: [],                                   
         images: {
             aspect: 0.75,
@@ -69,7 +69,7 @@ export const ASSET_CATALOG = [
             ghostOpacity: 0.25,       // opacidad final: queda traspasable                             
             source: randomSelfieUrl,                  
         },
-        spacing: 80, density: 0.20, size: [35, 55], sink: 0.06,   
+        spacing: 80, density: 0.20, size: [25, 25], sink: 0.06,   
         heightRange: [0, 0.40], maxSlope: 0.5, flat: 0.3,
         //avoid: {barco: 25, huesos: 20},
         avoid: {barco: 25},
