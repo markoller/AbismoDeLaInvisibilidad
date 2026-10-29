@@ -110,10 +110,10 @@ export class Modelo {
         //this.posZ +=delta*0.65;
 
         if (this.animaciones_outline) {
-            this.animaciones_outline.update(delta*0.65);
+            this.animaciones_outline.update(delta*1.7);
         }
         if (this.animaciones_base) {
-            this.animaciones_base.update(delta*0.65);
+            this.animaciones_base.update(delta*1.7);
         }
 
         this.modelo_outline.traverse((obj) => {
