@@ -228,6 +228,11 @@ class TerrainChunkManager {
             chunkSize: _CONFIG.chunkSize,
             radius: _CONFIG.propRadius,
             budgetMs: _CONFIG.propBudgetMs,
+            onPropDespawn: () => {
+                if (this._onDespawnCallback) {
+                    this._onDespawnCallback();
+                }
+            }
         });
 
         this._isReady = true; 
@@ -324,9 +329,12 @@ class TerrainChunkManager {
         if (!this._isReady || !this._props) return 1.0;
         return this._props.GetImageSpeedFactor(pos, slowRadius);
     }
+
+    SetDespawnCallback(callback) {
+        this._onDespawnCallback = callback;
+    }
 }
 
-// Clase Principal de la Demo
 class ProceduralTerrain_Demo extends game.Game {
     constructor() {
         super();
@@ -350,11 +358,23 @@ class ProceduralTerrain_Demo extends game.Game {
     async _OnInitialize() {
         this._controls = this._CreateControls();
 
+        this.AudioIniciar();
+
         this._entities['_terrain'] = new TerrainChunkManager({
             scene: this._graphics.Scene,
             camera: this._graphics.Camera,
             focus: () => (this._modeloPez ? this._modeloPez.modelo_base.position : this._controls.target),
         });
+
+        const terreno = this._entities['_terrain'];
+        if (terreno && terreno.SetDespawnCallback) {
+            terreno.SetDespawnCallback(() => {
+                if (this._audioDesaparece && this._audioDesaparece.buffer) {
+                    if (this._audioDesaparece.isPlaying) this._audioDesaparece.stop();
+                    this._audioDesaparece.play();
+                }
+            });
+        }
 
         this._InitInput();
         await this._LoadPez();
@@ -381,7 +401,6 @@ class ProceduralTerrain_Demo extends game.Game {
             controls.touches.TWO = THREE.TOUCH.ROTATE;
         }
 
-        // Detectar si el usuario está interactuando manualmente con la cámara
         controls.addEventListener('start', () => {
             this._isUserInteracting = true;
         });
@@ -427,12 +446,15 @@ class ProceduralTerrain_Demo extends game.Game {
         
         this._anguloY = this._modeloPez.modelo_base.rotation.y;
 
-        this._controls.target.copy(this._modeloPez.modelo_base.position).add(new THREE.Vector3(0, 3, 0));
-        this._graphics._camera.position.set(0, initialHeight + 8, 18);
-        
-        this._modeloPez.modelo_base.scale.set(20, 20, 20);
-        this._modeloPez.modelo_outline.scale.set(20.01, 20.01, 20.01);
-    }
+    this._controls.target.copy(this._modeloPez.modelo_base.position).add(new THREE.Vector3(0, 3, 0));
+    this._graphics._camera.position.set(0, initialHeight + 8, 18);
+    
+    const escalaPez = _IS_MOBILE ? 14 : 18;
+    const escalaOutline = escalaPez + 0.01;
+
+    this._modeloPez.modelo_base.scale.set(escalaPez, escalaPez, escalaPez);
+    this._modeloPez.modelo_outline.scale.set(escalaOutline, escalaOutline, escalaOutline);
+}
 
     _InitJoystick() {
         const zonaEl = document.getElementById("joystickZona");
@@ -538,12 +560,10 @@ class ProceduralTerrain_Demo extends game.Game {
             this._controls.target.copy(targetPos);
             this._graphics._camera.position.add(desplazamiento);
 
-            // Verificar si el pez se está moviendo o doblando
-            const pezMoviendose = _IS_MOBILE 
+           const pezMoviendose = _IS_MOBILE 
                 ? (this._adelante > 0 || Math.abs(this._girar) > 0) 
                 : (this._teclaAdelante || this._teclaIzquierda || this._teclaDerecha);
 
-            // Si el usuario NO está tocando la cámara manualmente Y el pez se mueve, la cámara retoma el seguimiento
             if (!this._isUserInteracting && pezMoviendose) {
                 const direccionPez = new THREE.Vector3(0, 0, 1).applyQuaternion(this._modeloPez.modelo_base.quaternion);
                 direccionPez.y = 0;
@@ -581,12 +601,22 @@ class ProceduralTerrain_Demo extends game.Game {
             factorProximidad = terreno.GetImageSpeedFactor(pb, radioFrenado);
         }
 
+        const estaCercaAhora = factorProximidad < 0.99; 
+
+        if (estaCercaAhora && !this._estabaCerca) {
+            if (this._audioProximidad.buffer && !this._audioProximidad.isPlaying) {
+                this._audioProximidad.play();
+
+            }
+        }
+        
+        this._estabaCerca = estaCercaAhora;
+
         const velocidadObjetivo = THREE.MathUtils.lerp(this._velocidadLenta, this._velocidadNormal, factorProximidad);
 
         const velocidadSuavizado = 15.0; 
         this._velocidadActual += (velocidadObjetivo - this._velocidadActual) * (1 - Math.exp(-velocidadSuavizado * dt));
 
-        // Calcular entrada de giro (A / D, Flechas Izq / Der, o Joystick horizontal)
         let turnInput = 0;
         if (_IS_MOBILE) {
             turnInput = this._girar;
@@ -600,7 +630,6 @@ class ProceduralTerrain_Demo extends game.Game {
             this._anguloY -= turnInput * velocidadGiro * dt;
         }
 
-        // Aplicar rotación al pez
         const rotacionObjetivo = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), this._anguloY + Math.PI);
         this._modeloPez.modelo_base.quaternion.slerp(rotacionObjetivo, 10.0 * dt);
         this._modeloPez.modelo_outline.quaternion.slerp(rotacionObjetivo, 10.0 * dt);
@@ -617,7 +646,6 @@ class ProceduralTerrain_Demo extends game.Game {
             this._modeloPez.modelo_outline.position.addScaledVector(direccion, factor * this._velocidadActual * dt);
         }
 
-        // Colisiones con assets del terreno
         if (terreno) {
             const FISH_RADIUS = 1.8;      
             const FISH_OFFSET = 2.6;      
@@ -635,7 +663,6 @@ class ProceduralTerrain_Demo extends game.Game {
             terreno.UpdateSelfies(pb, dt);
         }
 
-        // Altura del pez respecto al suelo
         if (terreno) {
             const p = this._modeloPez.modelo_base.position;
             const bajo = terreno.HeightAt(p.x, p.z);
@@ -657,6 +684,35 @@ class ProceduralTerrain_Demo extends game.Game {
         this._modeloPez.modelo_outline.updateMatrixWorld();
         this._modeloPez.update();
     }
+
+    AudioIniciar() {
+    const listener = new THREE.AudioListener();
+    this._graphics._camera.add(listener);
+
+    this._audioAmbiente = new THREE.Audio(listener);
+    const audioLoader = new THREE.AudioLoader();
+    audioLoader.load('../Sonidos/Ambiente.wav', (buffer) => {
+        this._audioAmbiente.setBuffer(buffer);
+        this._audioAmbiente.setLoop(true);
+        this._audioAmbiente.setVolume(0.8);
+        this._audioAmbiente.play();
+    });
+
+    this._audioProximidad = new THREE.Audio(listener);
+    audioLoader.load('../Sonidos/SpawnFotos.wav', (buffer) => {
+        this._audioProximidad.setBuffer(buffer);
+        this._audioProximidad.setVolume(0.8);
+    });
+
+    this._audioDesaparece = new THREE.Audio(listener);
+    audioLoader.load('../Sonidos/DespawnFotos.wav', (buffer) => {
+        this._audioDesaparece.setBuffer(buffer);
+        this._audioDesaparece.setVolume(0.8);
+    });
+
+    this._estabaCerca = false;
+}
+
 }
 
 function _Main() {

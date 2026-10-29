@@ -18,6 +18,7 @@ export const scatter = (function() {
         this._library = params.library;
         this._chunkSize = params.chunkSize;
         this._budgetMs = params.budgetMs;
+        this._onPropDespawn = params.onPropDespawn;
     
         this._cats = params.catalog.map((c) => {
             const dist = (c.drawDistance !== undefined) ? c.drawDistance : Math.max(300, c.size[1] * 40);
@@ -122,11 +123,14 @@ export const scatter = (function() {
             rec.group = root;
         }
     
-        // Brillo / desvanecimiento de las selfies segun la posicion del pez
         UpdateSelfies(pos, dt) {
         for (const cat of this._cats) {
             if (cat.images) {
-            this._library.UpdateImages(cat, pos, dt);
+                this._library.UpdateImages(cat, pos, dt, () => {
+                    if (this._onPropDespawn) {
+                        this._onPropDespawn();
+                    }
+                });
             }
         }
         }

@@ -92,3 +92,7 @@ html, body {
     transform: translate(0px, 0px);
     pointer-events: none;
 }
+
+canvas {
+    cursor: none;
+}
