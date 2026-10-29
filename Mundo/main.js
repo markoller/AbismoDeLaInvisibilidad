@@ -612,6 +612,15 @@ class ProceduralTerrain_Demo extends game.Game {
         
         this._estabaCerca = estaCercaAhora;
 
+        if (estaCercaAhora && !this._estabaCerca) {
+            if (this._audioProximidad.buffer && !this._audioProximidad.isPlaying) {
+                this._audioProximidad.play();
+
+            }
+        }
+        
+        this._estabaCerca = estaCercaAhora;
+
         const velocidadObjetivo = THREE.MathUtils.lerp(this._velocidadLenta, this._velocidadNormal, factorProximidad);
 
         const velocidadSuavizado = 15.0; 
@@ -683,6 +692,8 @@ class ProceduralTerrain_Demo extends game.Game {
         this._modeloPez.modelo_base.updateMatrixWorld();
         this._modeloPez.modelo_outline.updateMatrixWorld();
         this._modeloPez.update();
+
+        
     }
 
     AudioIniciar() {
