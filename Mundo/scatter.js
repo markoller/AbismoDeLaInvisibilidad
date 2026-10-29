@@ -47,64 +47,79 @@ export const scatter = (function() {
         }
     
         _BuildGroup(rec) {
-        const byVariant = new Map();
-        for (const pl of rec.placements) {
-            let list = byVariant.get(pl.variant);
-            if (!list) {
-            list = [];
-            byVariant.set(pl.variant, list);
-            }
-            list.push(pl);
-        }
-    
-        const root = new THREE.Group();
-        root.matrixAutoUpdate = false;          
+            const root = new THREE.Group();
+            root.matrixAutoUpdate = false;          
 
-        if (rec.cat.images) {
-            const entry = this._library.Get(rec.cat.id, 0);
-            const part = entry.parts[0];
-            for (const pl of rec.placements) {
-            const key = Math.round(pl.x) + '_' + Math.round(pl.z);
-            const mesh = new THREE.Mesh(part.geometry, this._library.GetImageMaterial(rec.cat, key, pl));
-            const s = pl.size / entry.baseSize;
-            _p.set(pl.x, pl.y - (rec.cat.sink || 0) * pl.size, pl.z);
-            _q.setFromAxisAngle(_UP, pl.rot);
-            _s.set(s, s, s);
-            _m.compose(_p, _q, _s);
-            _inst.multiplyMatrices(_m, part.localMatrix);
-            _inst.decompose(mesh.position, mesh.quaternion, mesh.scale);
-            root.add(mesh);
+            // 1. Caso especial para las selfies (planos con texturas)
+            if (rec.cat.images) {
+                const entry = this._library.Get(rec.cat.id, 0);
+                if (!entry || !entry.parts || entry.parts.length === 0) return;
+                const part = entry.parts[0];
+                
+                for (const pl of rec.placements) {
+                    const key = Math.round(pl.x) + '_' + Math.round(pl.z);
+                    const mesh = new THREE.Mesh(part.geometry, this._library.GetImageMaterial(rec.cat, key, pl));
+                    const s = pl.size / entry.baseSize;
+                    _p.set(pl.x, pl.y - (rec.cat.sink || 0) * pl.size, pl.z);
+                    _q.setFromAxisAngle(_UP, pl.rot);
+                    _s.set(s, s, s);
+                    _m.compose(_p, _q, _s);
+                    _inst.multiplyMatrices(_m, part.localMatrix);
+                    _inst.decompose(mesh.position, mesh.quaternion, mesh.scale);
+                    root.add(mesh);
+                }
+                if (root.children.length > 0) {
+                    this._scene.add(root);
+                }
+                rec.group = root;
+                return;
             }
+
+            // 2. Agrupar las ubicaciones por su variante de modelo
+            const byVariant = new Map();
+            for (const pl of rec.placements) {
+                let list = byVariant.get(pl.variant);
+                if (!list) {
+                    list = [];
+                    byVariant.set(pl.variant, list);
+                }
+                list.push(pl);
+            }
+
+            // Función auxiliar para crear InstancedMesh de forma limpia
+            const createInstancedMeshes = (parts, list, entry) => {
+                if (!parts || parts.length === 0) return;
+                for (const part of parts) {
+                    const mesh = new THREE.InstancedMesh(part.geometry, part.material, list.length);
+                    mesh.matrixAutoUpdate = false;
+                    for (let i = 0; i < list.length; i++) {
+                        const pl = list[i];
+                        const s = pl.size / entry.baseSize;
+                        _p.set(pl.x, pl.y - (rec.cat.sink || 0) * pl.size, pl.z);
+                        _q.setFromAxisAngle(_UP, pl.rot);
+                        _s.set(s, s, s);
+                        _m.compose(_p, _q, _s);
+                        _inst.multiplyMatrices(_m, part.localMatrix);
+                        mesh.setMatrixAt(i, _inst);
+                    }
+                    mesh.instanceMatrix.needsUpdate = true;
+                    root.add(mesh);
+                }
+            };
+
+            // 3. Recorrer cada variante y renderizar sus partes base y outline
+            for (const [variant, list] of byVariant) {
+                const entry = this._library.Get(rec.cat.id, variant);
+                if (!entry) continue;
+
+                createInstancedMeshes(entry.baseParts, list, entry);
+                createInstancedMeshes(entry.outlineParts, list, entry);
+            }
+
             if (root.children.length > 0) {
-            this._scene.add(root);
+                this._scene.add(root);
             }
             rec.group = root;
-            return;
-        }
-
-        for (const [variant, list] of byVariant) {
-            const entry = this._library.Get(rec.cat.id, variant);
-            for (const part of entry.parts) {
-            const mesh = new THREE.InstancedMesh(part.geometry, part.material, list.length);
-            mesh.matrixAutoUpdate = false;
-            for (let i = 0; i < list.length; i++) {
-                const pl = list[i];
-                const s = pl.size / entry.baseSize;
-                _p.set(pl.x, pl.y - (rec.cat.sink || 0) * pl.size, pl.z);
-                _q.setFromAxisAngle(_UP, pl.rot);
-                _s.set(s, s, s);
-                _m.compose(_p, _q, _s);
-                _inst.multiplyMatrices(_m, part.localMatrix);
-                mesh.setMatrixAt(i, _inst);
-            }
-            mesh.instanceMatrix.needsUpdate = true;
-            root.add(mesh);
-            }
-        }
-        if (root.children.length > 0) {
-            this._scene.add(root);
-        }
-        rec.group = root;
         }
     
         // Brillo / desvanecimiento de las selfies segun la posicion del pez

@@ -75,7 +75,7 @@ export class Modelo {
         }
 
         _scene.add(this.modelo_base);
-        console.log(this);
+        //console.log(this);
 
         const gltfLuz = await loader.loadAsync("../Modelos/Pez/luz.glb");
         this.luz = gltfLuz.scene;
@@ -137,16 +137,13 @@ export class ModeloFijo {
     }
 
     async init(_name) {
-        const customMaterial = new THREE.ShaderMaterial({
-            vertexShader: document.getElementById('vertexShader').textContent,
-            fragmentShader: document.getElementById('fragmentShader').textContent,
-            uniforms: {
-                uTime: { value: 0 },
-                uBaseColor: { value: new THREE.Color(0x1722D9) },
-            },
-            side: THREE.FrontSide,
-            blending: THREE.AdditiveBlending,
-            transparent: true
+        // Material de Outline adaptado para objetos estáticos (sin blending aditivo extremo)
+        const customMaterial = new THREE.MeshBasicMaterial({
+            color: 0x1722D9,
+            wireframe: false,
+            transparent: true,
+            opacity: 0.2,
+            blending: THREE.NormalBlending // Cambiado a Normal para asegurar visibilidad
         });
 
         const loader = new GLTFLoader();
@@ -161,19 +158,19 @@ export class ModeloFijo {
         });
 
         this.modelo_outline = modeloO;
-        
-        //_scene.add(this.modelo_outline);
-
 
         const gltfBase = await loader.loadAsync(_name);
         const modeloB = gltfBase.scene;
-        modeloB.castShadow = true;
-        modeloB.receiveShadow = true;
+        
+        modeloB.traverse((obj) => {
+            if (obj instanceof THREE.Mesh && obj.material) {
+                obj.material = obj.material.clone();
+                obj.castShadow = true;
+                obj.receiveShadow = true;
+            }
+        });
 
         this.modelo_base = modeloB;
-
-        //_scene.add(this.modelo_base);
-        console.log(this);
     }
 
     get(){
@@ -181,12 +178,12 @@ export class ModeloFijo {
     }
 
     update() {
-
-
-        this.modelo_outline.traverse((obj) => {
-            if (obj instanceof THREE.Mesh) {
-                obj.material.uniforms.uTime.value = 0.6;
-            }
-        });
+        if (this.modelo_outline) {
+            this.modelo_outline.traverse((obj) => {
+                if (obj instanceof THREE.Mesh && obj.material.uniforms) {
+                    obj.material.uniforms.uTime.value = 0.6;
+                }
+            });
+        }
     }
 }

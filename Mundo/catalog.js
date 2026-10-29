@@ -46,14 +46,14 @@ export const ASSET_CATALOG = [
         heightRange: [0, 0.35], maxSlope: 0.35, flat: 0.3,
         avoid: {},
     },
-    {
+    /*{
         id: 'huesos', placeholder: 'huesos',
         collide: {scale: 0.8},
         models: ['pez_abis.glb', 'pez_asal.glb'],
         spacing: 220, density: 0.10, size: [30, 55], sink: 0.10,
         heightRange: [0, 0.40], maxSlope: 0.5, flat: 0.3,
         avoid: {barco: 25},
-    },
+    },*/
     {
         id: 'selfies', placeholder: 'selfies',
         collide: {scale: 1.0},
@@ -71,7 +71,8 @@ export const ASSET_CATALOG = [
         },
         spacing: 80, density: 0.20, size: [35, 55], sink: 0.06,   
         heightRange: [0, 0.40], maxSlope: 0.5, flat: 0.3,
-        avoid: {barco: 25, huesos: 20},
+        //avoid: {barco: 25, huesos: 20},
+        avoid: {barco: 25},
     },
     {
         id: 'coral', placeholder: 'coral',
@@ -80,7 +81,8 @@ export const ASSET_CATALOG = [
         spacing: 12, density: 0.10, size: [6, 10], sink: 0.02,
         heightRange: [0, 1.0], maxSlope: 1.2,
         patch: {scale: 90, strength: 0.8},
-        avoid: {barco: 8, huesos: 6},
+        //avoid: {barco: 8, huesos: 6},
+        avoid: {barco: 8},
     },
     {
         id: 'piedra', placeholder: 'piedra',
@@ -89,7 +91,8 @@ export const ASSET_CATALOG = [
         spacing: 12, density: 0.20, size: [10, 16], sink: 0.25,
         heightRange: [0, 1.0], maxSlope: 1.2,
         patch: {scale: 90, strength: 0.8},
-        avoid: {barco: 8, huesos: 6},
+        //avoid: {barco: 8, huesos: 6},
+        avoid: {barco: 8},
     },
     {
         id: 'algas', placeholder: 'algas',
@@ -98,6 +101,7 @@ export const ASSET_CATALOG = [
         spacing: 6, density: 0.40, size: [30, 50], sink: 0.06,
         heightRange: [0, 0.45], maxSlope: 0.6,
         patch: {scale: 80, strength: 0.9},
-        avoid: {barco: 8, huesos: 6, piedra: 1.5},
+        //avoid: {barco: 8, huesos: 6, piedra: 1.5},
+        avoid: {barco: 8, piedra: 1.5},
     },
 ];

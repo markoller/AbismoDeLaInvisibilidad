@@ -55,7 +55,8 @@ const _NOISE_PARAMS = {
     seed: _GetSeed(),
 };
 
-// Chunk de Terreno
+
+// Chunk de Terreno con soporte para Outline
 const _ROCK = new THREE.Color(0x2f3a40);
 
 class TerrainChunk {
@@ -65,7 +66,7 @@ class TerrainChunk {
     }
 
     _Init() {
-        const {cx, cz, size, segments, generator, colourSpline, maxHeight} = this._params;
+        const {cx, cz, size, segments, generator, colourSpline, maxHeight, material, outlineMaterial} = this._params;
         const step = size / segments;
         const n = segments + 1;        
         const m = segments + 3;        
@@ -128,6 +129,7 @@ class TerrainChunk {
             }
         }
 
+        // Compartir la geometría base para el terreno y su outline
         const geometry = new THREE.BufferGeometry();
         geometry.setIndex(new THREE.BufferAttribute(indices, 1));
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -135,14 +137,23 @@ class TerrainChunk {
         geometry.setAttribute('color', new THREE.BufferAttribute(colours, 3));
         geometry.computeBoundingSphere();
 
-        this._mesh = new THREE.Mesh(geometry, this._params.material);
+        // 1. Mesh Base del Terreno
+        this._mesh = new THREE.Mesh(geometry, material);
         this._mesh.position.set(ox, 0, oz);
         this._params.scene.add(this._mesh);
+
+        // 2. Mesh Outline del Terreno
+        this._outlineMesh = new THREE.Mesh(geometry, outlineMaterial);
+        this._outlineMesh.position.set(ox, 0, oz);
+        
+        // Aumenta un poco más la escala general o la escala vertical (y)
+        this._outlineMesh.scale.set(1.005, 1.005, 1.005); // Probá subiendo de 1.002 a 1.005 o 1.01
     }
 
     Destroy() {
         this._params.scene.remove(this._mesh);
-        this._mesh.geometry.dispose();  
+        this._params.scene.remove(this._outlineMesh);
+        this._mesh.geometry.dispose();  // Libera la geometría compartida de ambos
     }
 }
 
@@ -151,10 +162,28 @@ class TerrainChunkManager {
         this._scene = params.scene;
         this._camera = params.camera;
         this._focus = params.focus || null;
+        this._isReady = false;
         this._Init();
     }
 
     async _Init() {
+
+        this._material = new THREE.MeshStandardMaterial({
+            color: 0xFFFFFF,
+            vertexColors: true,
+            roughness: 1.0,
+            metalness: 0.0,
+        });
+
+        // Material de Outline idéntico al de ModeloFijo para el terreno
+        this._outlineMaterial = new THREE.MeshBasicMaterial({
+            color: 0x1722D9,          // Mismo azul de contorno de tus objetos
+            wireframe: false,
+            transparent: true,
+            opacity: 0.25,            // Opacidad sutil para que no sature la pantalla
+            blending: THREE.NormalBlending
+        });
+
         const size = _CONFIG.chunkSize;
 
         this._generator = new noise.Noise(_NOISE_PARAMS);
@@ -188,6 +217,7 @@ class TerrainChunkManager {
 
         this._library = new assets.AssetLibrary(ASSET_CATALOG);
         await this._library.Load();
+        
         this._props = new scatter.PropScatter({
             scene: this._scene,
             library: this._library,
@@ -199,12 +229,16 @@ class TerrainChunkManager {
             radius: _CONFIG.propRadius,
             budgetMs: _CONFIG.propBudgetMs,
         });
+
+        this._isReady = true; 
+        console.log(this._props);
     }
 
     _Key(x, z) {
         return x + '.' + z;
     }
 
+    // <-- MÉTODO _Refresh RESTAURADO AQUÍ ADENTRO
     _Refresh() {
         const R = _CONFIG.viewRadius;
 
@@ -230,10 +264,11 @@ class TerrainChunkManager {
         this._pending.sort((a, b) => b.d - a.d);
     }
 
-    _AddChunk(cx, cz) {
+   _AddChunk(cx, cz) {
         const chunk = new TerrainChunk({
             scene: this._scene,
             material: this._material,
+            outlineMaterial: this._outlineMaterial, // <-- Añadido aquí
             generator: this._generator,
             colourSpline: this._colourSpline,
             maxHeight: _NOISE_PARAMS.height,
@@ -246,18 +281,23 @@ class TerrainChunkManager {
     }
 
     HeightAt(x, z) {
+        if (!this._generator) return 0;
         return this._generator.Get(x, z);
     }
 
     ResolveCollisions(pos, radius) {
+        if (!this._isReady || !this._props) return;
         this._props.Collide(pos, radius);
     }
 
     UpdateSelfies(pos, dt) {
+        if (!this._isReady || !this._props) return;
         this._props.UpdateSelfies(pos, dt);
     }
 
     async Update(timeInSeconds) {
+        if (!this._isReady) return;
+
         const p = this._camera.position;
         const cx = Math.floor(p.x / _CONFIG.chunkSize);
         const cz = Math.floor(p.z / _CONFIG.chunkSize);
@@ -281,6 +321,7 @@ class TerrainChunkManager {
     }
 
     GetImageSpeedFactor(pos, slowRadius) {
+        if (!this._isReady || !this._props) return 1.0;
         return this._props.GetImageSpeedFactor(pos, slowRadius);
     }
 }
@@ -369,7 +410,14 @@ class ProceduralTerrain_Demo extends game.Game {
     }
 
     async _LoadPez() {
-        const initialHeight = this._entities['_terrain'].HeightAt(0, 0) + 12;
+        const terreno = this._entities['_terrain'];
+        
+        // Esperar a que el TerrainChunkManager termine de cargar los assets
+        while (!terreno._isReady) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+        }
+
+        const initialHeight = terreno.HeightAt(0, 0) + 12; // <-- Declarada correctamente acá
         const wasd = new Modelo();
         await wasd.init('../Modelos/Pez/pez_animado.glb', this._graphics.Scene, this._graphics._camera);
         

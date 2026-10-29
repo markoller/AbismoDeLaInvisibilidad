@@ -63,34 +63,43 @@ export const assets = (function() {
     };
 
     function _BuildEntry(root) {
+        // Asegurarnos de computar las matrices antes de calcular la caja
         root.updateMatrixWorld(true);
+        
+        // Si el root es un grupo que contiene un solo objeto hijo o necesitamos la escena limpia, 
+        // normalizamos las transformaciones mundiales
         const box = new THREE.Box3().setFromObject(root);
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
         const baseSize = Math.max(size.x, size.y, size.z) || 1;
 
+        // Matriz pivote para centrar el modelo en la base (x/z centrado, y apoyado en 0)
         const pivot = new THREE.Matrix4().makeTranslation(-center.x, -box.min.y, -center.z);
 
         const parts = [];
         root.traverse((o) => {
-        if (o.isMesh) {
-            parts.push({
-            geometry: o.geometry,
-            material: o.material,
-            localMatrix: new THREE.Matrix4().multiplyMatrices(pivot, o.matrixWorld),
-            });
-        }
+            if (o.isMesh) {
+                // Clonar la geometría y aplicarle la transformación mundial acumulada del nodo 
+                // para que no se pierdan las escalas o rotaciones internas del .glb
+                const geom = o.geometry.clone();
+                geom.applyMatrix4(o.matrixWorld);
+
+                parts.push({
+                    geometry: geom,
+                    material: o.material,
+                    localMatrix: pivot.clone(), // El pivote general se encarga del posicionamiento
+                });
+            }
         });
-        // Medidas normalizadas (1 = el lado mas grande del modelo), para las colisiones:
-        // el modelo queda centrado en x/z sobre el punto de colocacion y apoyado en y = 0.
+
         return {
-        parts: parts, baseSize: baseSize,
-        halfX: size.x / 2 / baseSize,
-        halfZ: size.z / 2 / baseSize,
-        height: size.y / baseSize,
+            parts: parts, 
+            baseSize: baseSize,
+            halfX: size.x / 2 / baseSize,
+            halfZ: size.z / 2 / baseSize,
+            height: size.y / baseSize,
         };
     }
-
     class _AssetLibrary {
         constructor(catalog) {
         this._catalog = catalog;
@@ -101,35 +110,65 @@ export const assets = (function() {
         this._imageMats = new Map();     
         this.version = 0;
 
-        for (const cat of catalog) {
+        /*for (const cat of catalog) {
             const n = Math.max(1, cat.models.length);
             for (let v = 0; v < n; v++) {
             const make = _PLACEHOLDERS[cat.placeholder] || _PLACEHOLDERS.piedra;
             this._entries[cat.id + '|' + v] = _BuildEntry(make(cat.images ? cat.images.aspect : undefined));
             }
+        }*/
+       // En el constructor de _AssetLibrary:
+        for (const cat of catalog) {
+            const n = Math.max(1, cat.models.length);
+            for (let v = 0; v < n; v++) {
+                const make = _PLACEHOLDERS[cat.placeholder] || _PLACEHOLDERS.piedra;
+                const built = _BuildEntry(make(cat.images ? cat.images.aspect : undefined));
+                
+                this._entries[cat.id + '|' + v] = {
+                    baseSize: built.baseSize,
+                    halfX: built.halfX,
+                    halfZ: built.halfZ,
+                    height: built.height,
+                    parts: built.parts,           // <-- Mantenido para compatibilidad (selfies/placeholders)
+                    baseParts: built.parts,
+                    outlineParts: []
+                };
+            }
         }
         }
 
+        // En el método Load():
         async Load() {
             for (const cat of this._catalog) {
-                cat.models.forEach((file, v) => {
+                var ve = 0;
+                for (const file of cat.models){
                     const url = MODELS_PATH + file;
-                    //var modelo = ModeloFijo;
-                    //await modelo.init(url);
-                    //this._entries[cat.id + '|' + (v+1)] = _BuildEntry(modelo.modelo_base.scene);
-                    //this._entries[cat.id + '|' + v] = _BuildEntry(modelo.modelo_outline.scene.clone());
-                    //this.version++;
-                    //this.version+=2;
-                    //console.log('[assets] cargado', url);
-                    this._loader.load(url, (gltf) => {
-                    this._entries[cat.id + '|' + v] = _BuildEntry(gltf.scene);
-                    this.version++;
-                    console.log('[assets] cargado', url);
-            }, undefined, () => {
-                console.warn('[assets] no se pudo cargar ' + url + ' -> se usa placeholder');
-            });
-        });
-        }
+                    let modelo = new ModeloFijo();
+                    await modelo.init(url);
+                    console.log("Se carga modelo " + url);
+                    
+                    if (modelo.modelo_base && modelo.modelo_outline) {
+                        const baseEntry = _BuildEntry(modelo.modelo_base);
+                        const outlineEntry = _BuildEntry(modelo.modelo_outline);
+
+                        this._entries[cat.id + '|' + ve] = {
+                            baseSize: baseEntry.baseSize,
+                            halfX: baseEntry.halfX,
+                            halfZ: baseEntry.halfZ,
+                            height: baseEntry.height,
+                            parts: baseEntry.parts,       // <-- Añadido por seguridad
+                            baseParts: baseEntry.parts,
+                            outlineParts: outlineEntry.parts
+                        };
+                        
+                        this.version++;
+                        ve++;
+                        console.log('[assets] cargado con éxito:', url);
+                    } else {
+                        console.warn('[assets] no se pudo cargar ' + url + ' -> se usa placeholder');
+                    }
+                }
+            }
         }
 
         Get(catId, variant) {
