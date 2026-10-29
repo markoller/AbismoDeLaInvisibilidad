@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import Stats from 'three/addons/libs/stats.module.js';
+//import Stats from 'three/addons/libs/stats.module.js';
 
 
 export const graphics = (function() {
@@ -45,8 +45,8 @@ export const graphics = (function() {
         const target = document.getElementById('target');
         target.appendChild(this._threejs.domElement);
 
-        this._stats = new Stats();
-        target.appendChild(this._stats.dom);
+        //this._stats = new Stats();
+        //target.appendChild(this._stats.dom);
 
         window.addEventListener('resize', () => {
             this._OnWindowResize();
@@ -92,7 +92,7 @@ export const graphics = (function() {
 
         Render(timeInSeconds) {
         this._threejs.render(this._scene, this._camera);
-        this._stats.update();
+        //this._stats.update();
         }
     }
 

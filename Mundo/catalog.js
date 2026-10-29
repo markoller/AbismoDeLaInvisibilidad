@@ -42,18 +42,18 @@ export const ASSET_CATALOG = [
         id: 'barco', placeholder: 'barco',
         collide: {scale: 0.6},
         models: ['barquito.glb'],
-        spacing: 320, density: 0.06, size: [60, 100], sink: 0.15,
+        spacing: 200, density: 0.06, size: [60, 100], sink: 0.15,
         heightRange: [0, 0.35], maxSlope: 0.35, flat: 0.3,
         avoid: {},
     },
-    /*{
+    {
         id: 'huesos', placeholder: 'huesos',
         collide: {scale: 0.8},
         models: ['Huesos1.glb', 'Huesos2.glb'],
-        spacing: 220, density: 0.10, size: [30, 55], sink: 0.10,
+        spacing: 100, density: 0.10, size: [30, 55], sink: 0.10,
         heightRange: [0, 0.40], maxSlope: 0.5, flat: 0.3,
         avoid: {barco: 25},
-    },*/
+    },
     {
         id: 'selfies', placeholder: 'selfies',
         collide: {scale: 0.75},
@@ -69,7 +69,7 @@ export const ASSET_CATALOG = [
             ghostOpacity: 0.25,       // opacidad final: queda traspasable                             
             source: randomSelfieUrl,                  
         },
-        spacing: 80, density: 0.20, size: [25, 25], sink: 0.06,   
+        spacing: 80, density: 0.20, size: [15, 20], sink: 0.06,   
         heightRange: [0, 0.40], maxSlope: 0.5, flat: 0.3,
         //avoid: {barco: 25, huesos: 20},
         avoid: {barco: 25},
