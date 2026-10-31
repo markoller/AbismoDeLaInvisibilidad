@@ -799,7 +799,7 @@ class ProceduralTerrain_Demo extends game.Game {
                 console.error('No se pudo cargar ' + nombre + '.', error);
             });
         };
-        cargarAudio('../Sonidos/Ambiente.mp3', this._audioAmbiente, () => {
+        cargarAudio('../Sonidos/Ambiente.wav', this._audioAmbiente, () => {
             this._audioAmbiente.setLoop(true);
             iniciarAmbiente();
         });
