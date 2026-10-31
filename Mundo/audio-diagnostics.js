@@ -1,4 +1,4 @@
-// DIAGNÓSTICO AUDIO v4. Se ejecuta antes de Three.js para mostrar también
+// DIAGNÓSTICO AUDIO v5. Se ejecuta antes de Three.js para mostrar también
 // errores de arranque. No cambia el volumen ni crea otro AudioContext.
 (() => {
     'use strict';
@@ -18,6 +18,9 @@
     let attempts = 0;
     let gestures = 0;
     let lastGesture = 'ninguno';
+    let firstNavigationGesture = 'ninguno';
+    let automaticTone = 'esperando primer gesto fuera del panel';
+    let automaticTonePeak = 0;
     let lastResume = 'sin intentos';
     let toneRequest = 0;
     let activeTone = null;
@@ -36,13 +39,16 @@
     function render() {
         const context = audio?.context;
         const lines = [
-            'JavaScript diagnóstico: audio-v4',
+            'JavaScript diagnóstico: audio-v5',
             `Contexto: ${context?.state || 'no creado todavía'}`,
             `AudioSession: ${navigator.audioSession?.type || 'no disponible'}`,
             `Estado de sesión: ${navigator.audioSession?.state || 'no disponible'}`,
             `Reloj de audio: ${context ? context.currentTime.toFixed(2) + ' s' : '—'}`,
             `Frecuencia: ${context ? context.sampleRate + ' Hz' : '—'}`,
             `Gestos: ${gestures}; último: ${lastGesture}`,
+            `Primer gesto de navegación: ${firstNavigationGesture}`,
+            `Tono automático: ${automaticTone}`,
+            `Mayor señal medida durante el tono: ${automaticTonePeak > 0 ? (20 * Math.log10(automaticTonePeak)).toFixed(1) + ' dBFS' : 'sin medición todavía'}`,
             `resume(): ${attempts} intentos; ${pending.size} pendientes`,
             `Último resultado: ${lastResume}`,
         ];
@@ -59,6 +65,7 @@
         if (analyser) {
             analyser.getFloatTimeDomainData(samples);
             const rms = Math.sqrt(samples.reduce((sum, value) => sum + value * value, 0) / samples.length);
+            if (activeTone?.origin === 'navegación') automaticTonePeak = Math.max(automaticTonePeak, rms);
             lines.push(`Señal interna: ${rms > 0 ? (20 * Math.log10(rms)).toFixed(1) + ' dBFS' : 'sin señal en esta muestra'}`);
         }
         lines.push('', 'Archivos:');
@@ -68,6 +75,46 @@
             `Navegador: ${navigator.userAgent}`,
             'La señal interna no confirma que se escuche por el parlante.');
         report.textContent = lines.join('\n');
+    }
+
+    // DIAGNÓSTICO AUDIO v5: el mismo tono del botón se programa UNA VEZ
+    // desde el primer gesto real fuera del panel. Permite separar activación
+    // por navegación de un WAV demasiado bajo, sin cambiar archivos ni niveles.
+    function scheduleTone(origin) {
+        if (!audio || activeTone || audio.context.state === 'closed') return false;
+        const context = audio.context;
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        const now = context.currentTime;
+        oscillator.frequency.value = 660;
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.12, now + 0.03);
+        gain.gain.setValueAtTime(0.12, now + 0.7);
+        gain.gain.linearRampToValueAtTime(0, now + 0.8);
+        oscillator.connect(gain);
+        gain.connect(audio.listener.getInput());
+        activeTone = {oscillator, origin};
+        if (origin === 'navegación') automaticTone = `programado a ${now.toFixed(2)} s de audio`;
+        oscillator.onended = () => {
+            oscillator.disconnect();
+            gain.disconnect();
+            activeTone = null;
+            if (origin === 'navegación') automaticTone = 'finalizó internamente; confirmar si se escuchó';
+            log(`Terminó el tono de prueba (${origin}).`);
+        };
+        try {
+            oscillator.start(now);
+            oscillator.stop(now + 0.8);
+        } catch (error) {
+            oscillator.onended = null;
+            try { oscillator.stop(); } catch (stopError) { /* No llegó a iniciarse. */ }
+            oscillator.disconnect();
+            gain.disconnect();
+            activeTone = null;
+            throw error;
+        }
+        log(`Tono programado desde ${origin}: 660 Hz, 0.8 segundos.`);
+        return true;
     }
 
     window.AudioDiagnostics = {
@@ -102,6 +149,20 @@
             if (navigator.userActivation) {
                 lastGesture += `; activación ${navigator.userActivation.isActive ? 'sí' : 'no'}`;
             }
+            if (firstNavigationGesture === 'ninguno' && event?.isTrusted && event.target &&
+                !event.target.closest?.('#audio-debug')) {
+                firstNavigationGesture = lastGesture;
+                try {
+                    // Sin await: start() se ejecuta dentro del gesto real. El
+                    // código de audio reanuda a continuación el mismo contexto.
+                    if (!scheduleTone('navegación')) {
+                        automaticTone = 'no programado; recargá y navegá sin tocar el panel';
+                    }
+                } catch (error) {
+                    automaticTone = `error: ${describe(error)}`;
+                    log(`Falló el tono automático: ${describe(error)}`);
+                }
+            }
             render();
         },
         beginResume() {
@@ -131,28 +192,8 @@
                 log(`No se programó el tono: contexto ${context.state}.`);
                 return;
             }
-            const oscillator = context.createOscillator();
-            const gain = context.createGain();
-            const now = context.currentTime;
-            oscillator.frequency.value = 660;
-            gain.gain.setValueAtTime(0, now);
-            gain.gain.linearRampToValueAtTime(0.12, now + 0.03);
-            gain.gain.setValueAtTime(0.12, now + 0.7);
-            gain.gain.linearRampToValueAtTime(0, now + 0.8);
-            oscillator.connect(gain);
-            gain.connect(audio.listener.getInput());
-            activeTone = oscillator;
-            oscillator.onended = () => {
-                oscillator.disconnect();
-                gain.disconnect();
-                activeTone = null;
-                log('Terminó el tono de prueba.');
-            };
-            oscillator.start(now);
-            oscillator.stop(now + 0.8);
-            log('Tono programado: 660 Hz, 0.8 segundos.');
+            scheduleTone('botón');
         } catch (error) {
-            activeTone = null;
             log(`Error al probar el tono: ${describe(error)}`);
         }
     });
@@ -183,5 +224,5 @@
     setInterval(() => {
         if (document.getElementById('audio-debug').open && !document.hidden) render();
     }, 500);
-    log('Diagnóstico v4 activo. Esperando la escena…');
+    log('Diagnóstico v5 activo. Esperando la escena…');
 })();

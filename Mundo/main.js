@@ -12,8 +12,8 @@ import {ASSET_CATALOG} from './catalog.js';
 
 import {Modelo} from './cargar-modelo.js';
 
-// DIAGNÓSTICO AUDIO v4: permite identificar que llegó la versión nueva.
-window.AudioDiagnostics?.log('main.js audio-v4 cargado.');
+// DIAGNÓSTICO AUDIO v5: permite identificar que llegó la versión nueva.
+window.AudioDiagnostics?.log('main.js audio-v5 cargado.');
 
 let _APP = null;
 
@@ -821,7 +821,7 @@ class ProceduralTerrain_Demo extends game.Game {
             iniciarAmbiente();
         });
 
-        // DIAGNÓSTICO AUDIO v4: el panel observa el mismo contexto y sonidos.
+        // DIAGNÓSTICO AUDIO v5: el panel observa el mismo contexto y sonidos.
         diagnostico?.attach({
             context: contexto,
             listener,
