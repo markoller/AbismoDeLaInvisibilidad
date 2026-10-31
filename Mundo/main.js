@@ -696,13 +696,13 @@ class ProceduralTerrain_Demo extends game.Game {
         
     }
 
-    AudioIniciar() {
+    async AudioIniciar() {
     const listener = new THREE.AudioListener();
     this._graphics._camera.add(listener);
 
     this._audioAmbiente = new THREE.Audio(listener);
     const audioLoader = new THREE.AudioLoader();
-    audioLoader.load('../Sonidos/Ambiente.wav', (buffer) => {
+    await audioLoader.load('../Sonidos/Ambiente.wav', (buffer) => {
         this._audioAmbiente.setBuffer(buffer);
         this._audioAmbiente.setLoop(true);
         this._audioAmbiente.setVolume(0.8);
