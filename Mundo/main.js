@@ -12,6 +12,9 @@ import {ASSET_CATALOG} from './catalog.js';
 
 import {Modelo} from './cargar-modelo.js';
 
+// DIAGNÓSTICO AUDIO v2: permite identificar que llegó la versión nueva.
+window.AudioDiagnostics?.log('main.js audio-v2 cargado.');
+
 let _APP = null;
 
 // Configuraciones responsive y del mundo
@@ -697,32 +700,112 @@ class ProceduralTerrain_Demo extends game.Game {
     }
 
     AudioIniciar() {
-    const listener = new THREE.AudioListener();
-    this._graphics._camera.add(listener);
+        const diagnostico = window.AudioDiagnostics;
+        diagnostico?.log('AudioIniciar() ejecutado. Creando contexto…');
+        const listener = new THREE.AudioListener();
+        this._graphics._camera.add(listener);
+        const contexto = listener.context;
 
-    this._audioAmbiente = new THREE.Audio(listener);
-    const audioLoader = new THREE.AudioLoader();
-    audioLoader.load('../Sonidos/Ambiente.wav', (buffer) => {
-        this._audioAmbiente.setBuffer(buffer);
-        this._audioAmbiente.setLoop(true);
-        this._audioAmbiente.setVolume(0.8);
-        this._audioAmbiente.play();
-    });
+        this._audioAmbiente = new THREE.Audio(listener);
+        this._audioProximidad = new THREE.Audio(listener);
+        this._audioDesaparece = new THREE.Audio(listener);
 
-    this._audioProximidad = new THREE.Audio(listener);
-    audioLoader.load('../Sonidos/SpawnFotos.wav', (buffer) => {
-        this._audioProximidad.setBuffer(buffer);
-        this._audioProximidad.setVolume(0.8);
-    });
+        // CAMBIO AUDIO MÓVIL: iniciar el ambiente solo cuando estén listos
+        // tanto el archivo como el contexto, sin duplicar la reproducción.
+        const iniciarAmbiente = () => {
+            if (contexto.state === 'running' &&
+                this._audioAmbiente.buffer && !this._audioAmbiente.isPlaying) {
+                this._audioAmbiente.play();
+                diagnostico?.log('Ambiente programado para reproducción.');
+            }
+        };
 
-    this._audioDesaparece = new THREE.Audio(listener);
-    audioLoader.load('../Sonidos/DespawnFotos.wav', (buffer) => {
-        this._audioDesaparece.setBuffer(buffer);
-        this._audioDesaparece.setVolume(0.8);
-    });
+        const habilitarAudio = (evento) => {
+            diagnostico?.gesture(evento);
+            if (contexto.state === 'closed') {
+                diagnostico?.log('El contexto está cerrado. Recargá la página para reintentarlo.');
+                return;
+            }
+            if (contexto.state === 'running') {
+                iniciarAmbiente();
+                return;
+            }
 
-    this._estabaCerca = false;
-}
+            // CAMBIO AUDIO MÓVIL: resume() se llama directamente desde el
+            // toque/clic, antes de esperar promesas, para habilitar Web Audio.
+            const terminarIntento = diagnostico?.beginResume();
+            // Se devuelve la promesa para que el botón de prueba espere el resultado.
+            return contexto.resume().then(() => {
+                terminarIntento?.();
+                iniciarAmbiente();
+            }).catch((error) => {
+                terminarIntento?.(error);
+                console.warn('No se pudo habilitar el audio; se reintentará en el próximo toque.', error);
+            });
+        };
+
+        // CAMBIO AUDIO MÓVIL: capturar el gesto antes de que el joystick
+        // ejecute stopPropagation()/preventDefault(). No requiere otro botón.
+        // Se mantienen los eventos para reintentar si Safari interrumpe el audio
+        // al bloquear el teléfono o al volver desde otra pestaña.
+        for (const evento of ['pointerup', 'touchend', 'click', 'keydown']) {
+            window.addEventListener(evento, habilitarAudio, {capture: true, passive: true});
+        }
+        contexto.addEventListener('statechange', iniciarAmbiente);
+
+        // DIAGNÓSTICO AUDIO v2: el panel observa el mismo contexto y sonidos.
+        diagnostico?.attach({
+            context: contexto,
+            listener,
+            sounds: {
+                Ambiente: this._audioAmbiente,
+                Spawn: this._audioProximidad,
+                Despawn: this._audioDesaparece,
+            },
+            unlock: habilitarAudio,
+        });
+
+        const audioLoader = new THREE.AudioLoader();
+        const progreso = (nombre) => (evento) => {
+            const detalle = evento.total > 0
+                ? `${Math.round(evento.loaded / evento.total * 100)}%`
+                : `${Math.round(evento.loaded / 1024)} KB`;
+            diagnostico?.file(nombre, `descargando ${detalle}; falta decodificar`);
+        };
+        const listo = (nombre, buffer) => {
+            diagnostico?.file(nombre, `listo; ${buffer.duration.toFixed(1)} s, ${buffer.numberOfChannels} canales`);
+        };
+        const fallo = (nombre) => (error) => {
+            const detalle = error?.message || `error de red/decodificación (${error?.type || 'sin detalle'})`;
+            diagnostico?.file(nombre, `ERROR: ${detalle}`);
+            diagnostico?.log(`Falló ${nombre}: ${detalle}`);
+            console.error(`No se pudo cargar ${nombre}.`, error);
+        };
+        diagnostico?.file('Ambiente.wav', 'descargando');
+        audioLoader.load('../Sonidos/Ambiente.wav', (buffer) => {
+            this._audioAmbiente.setBuffer(buffer);
+            this._audioAmbiente.setLoop(true);
+            this._audioAmbiente.setVolume(0.8);
+            listo('Ambiente.wav', buffer);
+            iniciarAmbiente();
+        }, progreso('Ambiente.wav'), fallo('Ambiente.wav'));
+
+        diagnostico?.file('SpawnFotos.wav', 'descargando');
+        audioLoader.load('../Sonidos/SpawnFotos.wav', (buffer) => {
+            this._audioProximidad.setBuffer(buffer);
+            this._audioProximidad.setVolume(0.8);
+            listo('SpawnFotos.wav', buffer);
+        }, progreso('SpawnFotos.wav'), fallo('SpawnFotos.wav'));
+
+        diagnostico?.file('DespawnFotos.wav', 'descargando');
+        audioLoader.load('../Sonidos/DespawnFotos.wav', (buffer) => {
+            this._audioDesaparece.setBuffer(buffer);
+            this._audioDesaparece.setVolume(0.8);
+            listo('DespawnFotos.wav', buffer);
+        }, progreso('DespawnFotos.wav'), fallo('DespawnFotos.wav'));
+
+        this._estabaCerca = false;
+    }
 
 }
 

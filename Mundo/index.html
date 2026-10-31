@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>El abismo virtual</title>
-    <link rel="stylesheet" type="text/css" href="style.css">
+    <link rel="stylesheet" type="text/css" href="style.css?audio=2">
 
     <script type="importmap">
     {
@@ -88,6 +88,21 @@
     <div id="joystickZona"></div>
     <div id="error"></div>
     <div id="target"></div>
-    <script type="module" src="main.js"></script>
+    <!-- DIAGNÓSTICO AUDIO v2: visible incluso si falla el módulo de la escena. -->
+    <details id="audio-debug" open lang="es">
+        <summary>Audio · prueba 2</summary>
+        <div class="audio-debug-content">
+            <p id="audio-debug-status" role="status">HTML actualizado. Esperando JavaScript de diagnóstico…</p>
+            <div class="audio-debug-actions">
+                <button id="audio-debug-enable" type="button" disabled>Activar audio</button>
+                <button id="audio-debug-tone" type="button" disabled>Probar tono</button>
+                <button id="audio-debug-copy" type="button" disabled>Copiar diagnóstico</button>
+            </div>
+            <p>Pitido independiente de los WAV. Tocá el título para plegar el panel.</p>
+            <pre id="audio-debug-report">Versión HTML: audio-v2</pre>
+        </div>
+    </details>
+    <script src="audio-diagnostics.js?audio=2"></script>
+    <script type="module" src="main.js?audio=2"></script>
 </body>
 </html>
