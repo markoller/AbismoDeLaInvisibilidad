@@ -697,32 +697,72 @@ class ProceduralTerrain_Demo extends game.Game {
     }
 
     AudioIniciar() {
-    const listener = new THREE.AudioListener();
-    this._graphics._camera.add(listener);
+        const listener = new THREE.AudioListener();
+        this._graphics._camera.add(listener);
+        const contexto = listener.context;
 
-    this._audioAmbiente = new THREE.Audio(listener);
-    const audioLoader = new THREE.AudioLoader();
-    audioLoader.load('../Sonidos/Ambiente.wav', (buffer) => {
-        this._audioAmbiente.setBuffer(buffer);
-        this._audioAmbiente.setLoop(true);
-        this._audioAmbiente.setVolume(0.8);
-        this._audioAmbiente.play();
-    });
+        this._audioAmbiente = new THREE.Audio(listener);
+        this._audioProximidad = new THREE.Audio(listener);
+        this._audioDesaparece = new THREE.Audio(listener);
 
-    this._audioProximidad = new THREE.Audio(listener);
-    audioLoader.load('../Sonidos/SpawnFotos.wav', (buffer) => {
-        this._audioProximidad.setBuffer(buffer);
-        this._audioProximidad.setVolume(0.8);
-    });
+        // CAMBIO AUDIO MÓVIL: iniciar el ambiente solo cuando estén listos
+        // tanto el archivo como el contexto, sin duplicar la reproducción.
+        const iniciarAmbiente = () => {
+            if (contexto.state === 'running' &&
+                this._audioAmbiente.buffer && !this._audioAmbiente.isPlaying) {
+                this._audioAmbiente.play();
+            }
+        };
 
-    this._audioDesaparece = new THREE.Audio(listener);
-    audioLoader.load('../Sonidos/DespawnFotos.wav', (buffer) => {
-        this._audioDesaparece.setBuffer(buffer);
-        this._audioDesaparece.setVolume(0.8);
-    });
+        const habilitarAudio = () => {
+            if (contexto.state === 'closed') return;
+            if (contexto.state === 'running') {
+                iniciarAmbiente();
+                return;
+            }
 
-    this._estabaCerca = false;
-}
+            // CAMBIO AUDIO MÓVIL: resume() se llama directamente desde el
+            // toque/clic, antes de esperar promesas, para habilitar Web Audio.
+            contexto.resume().then(iniciarAmbiente).catch((error) => {
+                console.warn('No se pudo habilitar el audio; se reintentará en el próximo toque.', error);
+            });
+        };
+
+        // CAMBIO AUDIO MÓVIL: capturar el gesto antes de que el joystick
+        // ejecute stopPropagation()/preventDefault(). No requiere otro botón.
+        // Se mantienen los eventos para reintentar si Safari interrumpe el audio
+        // al bloquear el teléfono o al volver desde otra pestaña.
+        for (const evento of ['pointerup', 'touchend', 'click', 'keydown']) {
+            window.addEventListener(evento, habilitarAudio, {capture: true, passive: true});
+        }
+        contexto.addEventListener('statechange', iniciarAmbiente);
+
+        const audioLoader = new THREE.AudioLoader();
+        audioLoader.load('../Sonidos/Ambiente.wav', (buffer) => {
+            this._audioAmbiente.setBuffer(buffer);
+            this._audioAmbiente.setLoop(true);
+            this._audioAmbiente.setVolume(0.8);
+            iniciarAmbiente();
+        }, undefined, (error) => {
+            console.error('No se pudo cargar Ambiente.wav.', error);
+        });
+
+        audioLoader.load('../Sonidos/SpawnFotos.wav', (buffer) => {
+            this._audioProximidad.setBuffer(buffer);
+            this._audioProximidad.setVolume(0.8);
+        }, undefined, (error) => {
+            console.error('No se pudo cargar SpawnFotos.wav.', error);
+        });
+
+        audioLoader.load('../Sonidos/DespawnFotos.wav', (buffer) => {
+            this._audioDesaparece.setBuffer(buffer);
+            this._audioDesaparece.setVolume(0.8);
+        }, undefined, (error) => {
+            console.error('No se pudo cargar DespawnFotos.wav.', error);
+        });
+
+        this._estabaCerca = false;
+    }
 
 }
 
