@@ -3,8 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+    // CAMBIO AUDIO v6: escuchar el primer gesto ANTES de descargar Three.js
+    // y la escena. El contexto habilitado aquí se reutiliza en AudioIniciar().
+    // No se guarda un clic para simularlo después: resume() ocurre en el gesto real.
+    (() => {
+        const eventos = ['touchstart', 'pointerdown', 'mousedown', 'pointerup', 'touchend', 'click', 'keydown'];
+        const opciones = {capture: true, passive: true};
+        let fuente = null;
+        const arranque = window.AudioArranque = {
+            contexto: null,
+            primerGesto: null,
+            error: null,
+            finalizar() {
+                for (const evento of eventos) window.removeEventListener(evento, activar, opciones);
+            },
+        };
+        function activar(evento) {
+            if (!evento.isTrusted) return;
+            if (!arranque.primerGesto) {
+                arranque.primerGesto = `${evento.type}; destino ${evento.target?.id || evento.target?.tagName || 'pantalla'}`;
+            }
+            try {
+                const TipoContexto = window.AudioContext || window.webkitAudioContext;
+                if (!TipoContexto) return;
+                try {
+                    if (navigator.audioSession) navigator.audioSession.type = 'playback';
+                } catch (error) {
+                    arranque.error = `AudioSession: ${error.message}`;
+                }
+                if (!arranque.contexto || arranque.contexto.state === 'closed') {
+                    arranque.contexto = new TipoContexto();
+                }
+                const contexto = arranque.contexto;
+                if (contexto.state === 'running') return;
+                if (!fuente) {
+                    fuente = contexto.createBufferSource();
+                    fuente.buffer = contexto.createBuffer(1, 1, contexto.sampleRate);
+                    fuente.connect(contexto.destination);
+                    fuente.onended = () => {
+                        fuente.disconnect();
+                        fuente = null;
+                    };
+                    fuente.start(0);
+                }
+                contexto.resume().catch(error => {
+                    arranque.error = error.message;
+                });
+            } catch (error) {
+                arranque.error = error.message;
+            }
+        }
+        for (const evento of eventos) window.addEventListener(evento, activar, opciones);
+    })();
+    </script>
     <title>El abismo virtual</title>
-    <link rel="stylesheet" type="text/css" href="style.css?audio=5">
+    <link rel="stylesheet" type="text/css" href="style.css?audio=6">
 
     <script type="importmap">
     {
@@ -88,9 +142,9 @@
     <div id="joystickZona"></div>
     <div id="error"></div>
     <div id="target"></div>
-    <!-- DIAGNÓSTICO AUDIO v5: comparar tono automático y ambiente al navegar. -->
+    <!-- DIAGNÓSTICO AUDIO v6: verificar también los gestos durante la carga inicial. -->
     <details id="audio-debug" open lang="es">
-        <summary>Audio · prueba 5</summary>
+        <summary>Audio · prueba 6</summary>
         <div class="audio-debug-content">
             <p id="audio-debug-status" role="status">HTML actualizado. Esperando JavaScript de diagnóstico…</p>
             <div class="audio-debug-actions">
@@ -98,11 +152,11 @@
                 <button id="audio-debug-tone" type="button" disabled>Probar tono</button>
                 <button id="audio-debug-copy" type="button" disabled>Copiar diagnóstico</button>
             </div>
-            <p>Al primer toque fuera del panel se programa un pitido de prueba. Tocá el joystick sin usar estos botones.</p>
-            <pre id="audio-debug-report">Versión HTML: audio-v5</pre>
+            <p>Tocá el joystick sin usar estos botones. Se registra el gesto durante la carga; con la escena lista también se programa un pitido de prueba.</p>
+            <pre id="audio-debug-report">Versión HTML: audio-v6</pre>
         </div>
     </details>
-    <script src="audio-diagnostics.js?audio=5"></script>
-    <script type="module" src="main.js?audio=5"></script>
+    <script src="audio-diagnostics.js?audio=6"></script>
+    <script type="module" src="main.js?audio=6"></script>
 </body>
 </html>

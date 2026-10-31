@@ -12,8 +12,8 @@ import {ASSET_CATALOG} from './catalog.js';
 
 import {Modelo} from './cargar-modelo.js';
 
-// DIAGNÓSTICO AUDIO v5: permite identificar que llegó la versión nueva.
-window.AudioDiagnostics?.log('main.js audio-v5 cargado.');
+// DIAGNÓSTICO AUDIO v6: permite identificar que llegó la versión nueva.
+window.AudioDiagnostics?.log('main.js audio-v6 cargado.');
 
 let _APP = null;
 
@@ -726,6 +726,13 @@ class ProceduralTerrain_Demo extends game.Game {
         };
         configurarSesionAudio();
 
+        // CAMBIO AUDIO v6: conservar la habilitación obtenida por un toque
+        // durante la carga de módulos, usando el MISMO contexto en Three.js.
+        const arranque = window.AudioArranque;
+        if (arranque?.contexto) {
+            THREE.AudioContext.setContext(arranque.contexto);
+            diagnostico?.log(`Contexto de arranque reutilizado; gesto ${arranque.primerGesto}.`);
+        }
         const listener = new THREE.AudioListener();
         this._graphics._camera.add(listener);
         const contexto = listener.context;
@@ -820,8 +827,11 @@ class ProceduralTerrain_Demo extends game.Game {
             if (contexto.state !== 'running') activadoDesdeGesto = false;
             iniciarAmbiente();
         });
+        // Los eventos normales ya están instalados: retirar solo la captura
+        // temprana para no mantener dos habilitadores en paralelo.
+        arranque?.finalizar();
 
-        // DIAGNÓSTICO AUDIO v5: el panel observa el mismo contexto y sonidos.
+        // DIAGNÓSTICO AUDIO v6: el panel observa el mismo contexto y sonidos.
         diagnostico?.attach({
             context: contexto,
             listener,

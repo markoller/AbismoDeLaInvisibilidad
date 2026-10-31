@@ -1,4 +1,4 @@
-// DIAGNÓSTICO AUDIO v5. Se ejecuta antes de Three.js para mostrar también
+// DIAGNÓSTICO AUDIO v6. Se ejecuta antes de Three.js para mostrar también
 // errores de arranque. No cambia el volumen ni crea otro AudioContext.
 (() => {
     'use strict';
@@ -39,7 +39,9 @@
     function render() {
         const context = audio?.context;
         const lines = [
-            'JavaScript diagnóstico: audio-v5',
+            'JavaScript diagnóstico: audio-v6',
+            `Gesto previo a la escena: ${window.AudioArranque?.primerGesto || 'ninguno'}`,
+            `Error de arranque: ${window.AudioArranque?.error || 'ninguno'}`,
             `Contexto: ${context?.state || 'no creado todavía'}`,
             `AudioSession: ${navigator.audioSession?.type || 'no disponible'}`,
             `Estado de sesión: ${navigator.audioSession?.state || 'no disponible'}`,
@@ -224,5 +226,5 @@
     setInterval(() => {
         if (document.getElementById('audio-debug').open && !document.hidden) render();
     }, 500);
-    log('Diagnóstico v5 activo. Esperando la escena…');
+    log('Diagnóstico v6 activo. Esperando la escena…');
 })();
