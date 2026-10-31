@@ -1,4 +1,4 @@
-// DIAGNÓSTICO AUDIO v2. Se ejecuta antes de Three.js para mostrar también
+// DIAGNÓSTICO AUDIO v3. Se ejecuta antes de Three.js para mostrar también
 // errores de arranque. No cambia el volumen ni crea otro AudioContext.
 (() => {
     'use strict';
@@ -36,8 +36,10 @@
     function render() {
         const context = audio?.context;
         const lines = [
-            'JavaScript diagnóstico: audio-v2',
+            'JavaScript diagnóstico: audio-v3',
             `Contexto: ${context?.state || 'no creado todavía'}`,
+            `AudioSession: ${navigator.audioSession?.type || 'no disponible'}`,
+            `Estado de sesión: ${navigator.audioSession?.state || 'no disponible'}`,
             `Reloj de audio: ${context ? context.currentTime.toFixed(2) + ' s' : '—'}`,
             `Frecuencia: ${context ? context.sampleRate + ' Hz' : '—'}`,
             `Gestos: ${gestures}; último: ${lastGesture}`,
@@ -63,7 +65,6 @@
         for (const [name, state] of files) lines.push(`${name}: ${state}`);
         lines.push('', 'Eventos recientes:', ...messages,
             '', `Página: ${location.pathname}`, `Pestaña: ${document.visibilityState}`,
-            `AudioSession: ${navigator.audioSession?.type || 'no disponible'}`,
             `Navegador: ${navigator.userAgent}`,
             'La señal interna no confirma que se escuche por el parlante.');
         report.textContent = lines.join('\n');
@@ -171,11 +172,14 @@
     }, true);
     window.addEventListener('unhandledrejection', event => log(`Error no controlado: ${describe(event.reason)}`));
     document.addEventListener('visibilitychange', () => log(`Pestaña: ${document.visibilityState}`));
+    navigator.audioSession?.addEventListener('statechange', () => {
+        log(`AudioSession: ${navigator.audioSession.type}; estado: ${navigator.audioSession.state}.`);
+    });
     setTimeout(() => {
         if (!audio) log('La escena todavía no inicializó el audio. Revisá los errores del panel.');
     }, 15000);
     setInterval(() => {
         if (document.getElementById('audio-debug').open && !document.hidden) render();
     }, 500);
-    log('Diagnóstico v2 activo. Esperando la escena…');
+    log('Diagnóstico v3 activo. Esperando la escena…');
 })();

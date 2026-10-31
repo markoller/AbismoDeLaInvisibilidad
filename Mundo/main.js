@@ -12,8 +12,8 @@ import {ASSET_CATALOG} from './catalog.js';
 
 import {Modelo} from './cargar-modelo.js';
 
-// DIAGNÓSTICO AUDIO v2: permite identificar que llegó la versión nueva.
-window.AudioDiagnostics?.log('main.js audio-v2 cargado.');
+// DIAGNÓSTICO AUDIO v3: permite identificar que llegó la versión nueva.
+window.AudioDiagnostics?.log('main.js audio-v3 cargado.');
 
 let _APP = null;
 
@@ -702,6 +702,27 @@ class ProceduralTerrain_Demo extends game.Game {
     AudioIniciar() {
         const diagnostico = window.AudioDiagnostics;
         diagnostico?.log('AudioIniciar() ejecutado. Creando contexto…');
+
+        // CAMBIO AUDIO iOS v3: con AudioSession "auto", Safari puede tratar
+        // Web Audio como sonido ambiente y respetar el modo silencio del iPhone,
+        // aunque el contexto esté running y haya señal. Declarar "playback"
+        // solicita reproducción multimedia, también para el tono de prueba.
+        // Se configura antes de crear el contexto y nuevamente en cada gesto.
+        // Esta categoría puede pausar la reproducción de otras aplicaciones.
+        const configurarSesionAudio = () => {
+            try {
+                const sesion = navigator.audioSession;
+                if (sesion && sesion.type !== 'playback') {
+                    sesion.type = 'playback';
+                    diagnostico?.log(`AudioSession solicitada: playback; actual: ${sesion.type}.`);
+                }
+            } catch (error) {
+                diagnostico?.log(`No se pudo configurar AudioSession: ${error.message}`);
+                console.warn('No se pudo configurar la sesión de reproducción.', error);
+            }
+        };
+        configurarSesionAudio();
+
         const listener = new THREE.AudioListener();
         this._graphics._camera.add(listener);
         const contexto = listener.context;
@@ -722,6 +743,7 @@ class ProceduralTerrain_Demo extends game.Game {
 
         const habilitarAudio = (evento) => {
             diagnostico?.gesture(evento);
+            configurarSesionAudio();
             if (contexto.state === 'closed') {
                 diagnostico?.log('El contexto está cerrado. Recargá la página para reintentarlo.');
                 return;
@@ -753,7 +775,7 @@ class ProceduralTerrain_Demo extends game.Game {
         }
         contexto.addEventListener('statechange', iniciarAmbiente);
 
-        // DIAGNÓSTICO AUDIO v2: el panel observa el mismo contexto y sonidos.
+        // DIAGNÓSTICO AUDIO v3: el panel observa el mismo contexto y sonidos.
         diagnostico?.attach({
             context: contexto,
             listener,
