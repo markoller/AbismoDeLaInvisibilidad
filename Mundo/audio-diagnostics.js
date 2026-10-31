@@ -1,4 +1,4 @@
-// DIAGNÓSTICO AUDIO v3. Se ejecuta antes de Three.js para mostrar también
+// DIAGNÓSTICO AUDIO v4. Se ejecuta antes de Three.js para mostrar también
 // errores de arranque. No cambia el volumen ni crea otro AudioContext.
 (() => {
     'use strict';
@@ -36,7 +36,7 @@
     function render() {
         const context = audio?.context;
         const lines = [
-            'JavaScript diagnóstico: audio-v3',
+            'JavaScript diagnóstico: audio-v4',
             `Contexto: ${context?.state || 'no creado todavía'}`,
             `AudioSession: ${navigator.audioSession?.type || 'no disponible'}`,
             `Estado de sesión: ${navigator.audioSession?.state || 'no disponible'}`,
@@ -97,6 +97,8 @@
         gesture(event) {
             gestures++;
             lastGesture = `${event?.type || 'botón'}; real ${event?.isTrusted ? 'sí' : 'no'}`;
+            const target = event?.target?.id || event?.target?.tagName;
+            if (target) lastGesture += `; destino ${target}`;
             if (navigator.userActivation) {
                 lastGesture += `; activación ${navigator.userActivation.isActive ? 'sí' : 'no'}`;
             }
@@ -181,5 +183,5 @@
     setInterval(() => {
         if (document.getElementById('audio-debug').open && !document.hidden) render();
     }, 500);
-    log('Diagnóstico v3 activo. Esperando la escena…');
+    log('Diagnóstico v4 activo. Esperando la escena…');
 })();

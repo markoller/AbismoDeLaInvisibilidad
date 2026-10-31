@@ -12,8 +12,8 @@ import {ASSET_CATALOG} from './catalog.js';
 
 import {Modelo} from './cargar-modelo.js';
 
-// DIAGNÓSTICO AUDIO v3: permite identificar que llegó la versión nueva.
-window.AudioDiagnostics?.log('main.js audio-v3 cargado.');
+// DIAGNÓSTICO AUDIO v4: permite identificar que llegó la versión nueva.
+window.AudioDiagnostics?.log('main.js audio-v4 cargado.');
 
 let _APP = null;
 
@@ -489,6 +489,9 @@ class ProceduralTerrain_Demo extends game.Game {
         const maxRadius = 35;
 
         zonaEl.addEventListener('pointerdown', (e) => {
+            // CAMBIO AUDIO iOS v4: activar desde el gesto real del joystick,
+            // antes de cancelar sus eventos, sin depender del panel de pruebas.
+            this._habilitarAudio?.(e);
             joystickActive = true;
             zonaEl.setPointerCapture(e.pointerId); 
             e.stopPropagation();
@@ -727,6 +730,13 @@ class ProceduralTerrain_Demo extends game.Game {
         this._graphics._camera.add(listener);
         const contexto = listener.context;
 
+        // CAMBIO AUDIO iOS v4: iniciar una muestra silenciosa dentro del gesto
+        // ayuda a activar Web Audio en Safari. No emite un pitido ni crea otro
+        // contexto; es independiente de los WAV y de la consola de diagnóstico.
+        const muestraSilenciosa = contexto.createBuffer(1, 1, contexto.sampleRate);
+        let activadoDesdeGesto = false;
+        let fuenteActivacion = null;
+
         this._audioAmbiente = new THREE.Audio(listener);
         this._audioProximidad = new THREE.Audio(listener);
         this._audioDesaparece = new THREE.Audio(listener);
@@ -748,9 +758,39 @@ class ProceduralTerrain_Demo extends game.Game {
                 diagnostico?.log('El contexto está cerrado. Recargá la página para reintentarlo.');
                 return;
             }
-            if (contexto.state === 'running') {
+            if (contexto.state === 'running' && activadoDesdeGesto) {
                 iniciarAmbiente();
                 return;
+            }
+
+            // start() debe ejecutarse en la misma pila del touchstart/pointerdown,
+            // antes de cualquier promesa y de preventDefault() del joystick.
+            // Si un gesto no bastó, el siguiente reemplaza la fuente pendiente.
+            try {
+                if (fuenteActivacion) {
+                    const anterior = fuenteActivacion;
+                    fuenteActivacion = null;
+                    try { anterior.stop(); } catch (error) {
+                        // Puede no haber llegado a iniciarse en el intento anterior.
+                    }
+                    anterior.disconnect();
+                }
+                const fuente = contexto.createBufferSource();
+                fuenteActivacion = fuente;
+                fuente.buffer = muestraSilenciosa;
+                fuente.connect(listener.getInput());
+                fuente.onended = () => {
+                    fuente.disconnect();
+                    if (fuenteActivacion !== fuente) return;
+                    fuenteActivacion = null;
+                    activadoDesdeGesto = contexto.state === 'running';
+                    diagnostico?.log(`Muestra de activación finalizada desde ${evento?.type || 'gesto'}; contexto ${contexto.state}.`);
+                    iniciarAmbiente();
+                };
+                fuente.start(0);
+            } catch (error) {
+                diagnostico?.log(`Falló la muestra de activación: ${error.message}`);
+                console.warn('No se pudo iniciar la muestra de activación de audio.', error);
             }
 
             // CAMBIO AUDIO MÓVIL: resume() se llama directamente desde el
@@ -766,16 +806,22 @@ class ProceduralTerrain_Demo extends game.Game {
             });
         };
 
-        // CAMBIO AUDIO MÓVIL: capturar el gesto antes de que el joystick
-        // ejecute stopPropagation()/preventDefault(). No requiere otro botón.
+        // CAMBIO AUDIO iOS v4: escuchar también el INICIO del contacto.
+        // Safari puede no aceptar touchend después de un arrastre como clic.
+        // La captura se ejecuta antes del joystick y de los controles de cámara.
+        // No se cancelan eventos ni se modifica la navegación.
         // Se mantienen los eventos para reintentar si Safari interrumpe el audio
         // al bloquear el teléfono o al volver desde otra pestaña.
-        for (const evento of ['pointerup', 'touchend', 'click', 'keydown']) {
+        this._habilitarAudio = habilitarAudio;
+        for (const evento of ['touchstart', 'pointerdown', 'mousedown', 'pointerup', 'touchend', 'click', 'keydown']) {
             window.addEventListener(evento, habilitarAudio, {capture: true, passive: true});
         }
-        contexto.addEventListener('statechange', iniciarAmbiente);
+        contexto.addEventListener('statechange', () => {
+            if (contexto.state !== 'running') activadoDesdeGesto = false;
+            iniciarAmbiente();
+        });
 
-        // DIAGNÓSTICO AUDIO v3: el panel observa el mismo contexto y sonidos.
+        // DIAGNÓSTICO AUDIO v4: el panel observa el mismo contexto y sonidos.
         diagnostico?.attach({
             context: contexto,
             listener,
