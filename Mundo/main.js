@@ -12,9 +12,6 @@ import {ASSET_CATALOG} from './catalog.js';
 
 import {Modelo} from './cargar-modelo.js';
 
-// DIAGNÓSTICO AUDIO v6: permite identificar que llegó la versión nueva.
-window.AudioDiagnostics?.log('main.js audio-v6 cargado.');
-
 let _APP = null;
 
 // Configuraciones responsive y del mundo
@@ -489,9 +486,6 @@ class ProceduralTerrain_Demo extends game.Game {
         const maxRadius = 35;
 
         zonaEl.addEventListener('pointerdown', (e) => {
-            // CAMBIO AUDIO iOS v4: activar desde el gesto real del joystick,
-            // antes de cancelar sus eventos, sin depender del panel de pruebas.
-            this._habilitarAudio?.(e);
             joystickActive = true;
             zonaEl.setPointerCapture(e.pointerId); 
             e.stopPropagation();
@@ -703,43 +697,26 @@ class ProceduralTerrain_Demo extends game.Game {
     }
 
     AudioIniciar() {
-        const diagnostico = window.AudioDiagnostics;
-        diagnostico?.log('AudioIniciar() ejecutado. Creando contexto…');
-
-        // CAMBIO AUDIO iOS v3: con AudioSession "auto", Safari puede tratar
-        // Web Audio como sonido ambiente y respetar el modo silencio del iPhone,
-        // aunque el contexto esté running y haya señal. Declarar "playback"
-        // solicita reproducción multimedia, también para el tono de prueba.
-        // Se configura antes de crear el contexto y nuevamente en cada gesto.
-        // Esta categoría puede pausar la reproducción de otras aplicaciones.
+        // AUDIO SIN INTERFAZ: habilitar desde los gestos normales de la web.
+        // Se conserva playback para el modo silencio de iPhone.
         const configurarSesionAudio = () => {
             try {
-                const sesion = navigator.audioSession;
-                if (sesion && sesion.type !== 'playback') {
-                    sesion.type = 'playback';
-                    diagnostico?.log(`AudioSession solicitada: playback; actual: ${sesion.type}.`);
+                if (navigator.audioSession && navigator.audioSession.type !== 'playback') {
+                    navigator.audioSession.type = 'playback';
                 }
             } catch (error) {
-                diagnostico?.log(`No se pudo configurar AudioSession: ${error.message}`);
                 console.warn('No se pudo configurar la sesión de reproducción.', error);
             }
         };
         configurarSesionAudio();
 
-        // CAMBIO AUDIO v6: conservar la habilitación obtenida por un toque
-        // durante la carga de módulos, usando el MISMO contexto en Three.js.
+        // Conservar el contexto habilitado por un gesto durante la carga.
         const arranque = window.AudioArranque;
-        if (arranque?.contexto) {
-            THREE.AudioContext.setContext(arranque.contexto);
-            diagnostico?.log(`Contexto de arranque reutilizado; gesto ${arranque.primerGesto}.`);
-        }
+        if (arranque?.contexto) THREE.AudioContext.setContext(arranque.contexto);
         const listener = new THREE.AudioListener();
         this._graphics._camera.add(listener);
+        listener.setMasterVolume(1);
         const contexto = listener.context;
-
-        // CAMBIO AUDIO iOS v4: iniciar una muestra silenciosa dentro del gesto
-        // ayuda a activar Web Audio en Safari. No emite un pitido ni crea otro
-        // contexto; es independiente de los WAV y de la consola de diagnóstico.
         const muestraSilenciosa = contexto.createBuffer(1, 1, contexto.sampleRate);
         let activadoDesdeGesto = false;
         let fuenteActivacion = null;
@@ -748,37 +725,31 @@ class ProceduralTerrain_Demo extends game.Game {
         this._audioProximidad = new THREE.Audio(listener);
         this._audioDesaparece = new THREE.Audio(listener);
 
-        // CAMBIO AUDIO MÓVIL: iniciar el ambiente solo cuando estén listos
-        // tanto el archivo como el contexto, sin duplicar la reproducción.
         const iniciarAmbiente = () => {
             if (contexto.state === 'running' &&
                 this._audioAmbiente.buffer && !this._audioAmbiente.isPlaying) {
                 this._audioAmbiente.play();
-                diagnostico?.log('Ambiente programado para reproducción.');
             }
         };
 
-        const habilitarAudio = (evento) => {
-            diagnostico?.gesture(evento);
+        // Ejecutar resume() dentro del gesto real, antes de esperar promesas.
+        // La muestra es silenciosa y no agrega un sonido a la experiencia.
+        const habilitarAudio = () => {
             configurarSesionAudio();
             if (contexto.state === 'closed') {
-                diagnostico?.log('El contexto está cerrado. Recargá la página para reintentarlo.');
-                return;
+                return Promise.reject(new Error('El contexto de audio está cerrado.'));
             }
+            listener.setMasterVolume(1);
             if (contexto.state === 'running' && activadoDesdeGesto) {
                 iniciarAmbiente();
-                return;
+                return Promise.resolve();
             }
-
-            // start() debe ejecutarse en la misma pila del touchstart/pointerdown,
-            // antes de cualquier promesa y de preventDefault() del joystick.
-            // Si un gesto no bastó, el siguiente reemplaza la fuente pendiente.
             try {
                 if (fuenteActivacion) {
                     const anterior = fuenteActivacion;
                     fuenteActivacion = null;
                     try { anterior.stop(); } catch (error) {
-                        // Puede no haber llegado a iniciarse en el intento anterior.
+                        // El intento anterior puede no haber llegado a iniciarse.
                     }
                     anterior.disconnect();
                 }
@@ -791,97 +762,49 @@ class ProceduralTerrain_Demo extends game.Game {
                     if (fuenteActivacion !== fuente) return;
                     fuenteActivacion = null;
                     activadoDesdeGesto = contexto.state === 'running';
-                    diagnostico?.log(`Muestra de activación finalizada desde ${evento?.type || 'gesto'}; contexto ${contexto.state}.`);
                     iniciarAmbiente();
                 };
                 fuente.start(0);
             } catch (error) {
-                diagnostico?.log(`Falló la muestra de activación: ${error.message}`);
                 console.warn('No se pudo iniciar la muestra de activación de audio.', error);
             }
-
-            // CAMBIO AUDIO MÓVIL: resume() se llama directamente desde el
-            // toque/clic, antes de esperar promesas, para habilitar Web Audio.
-            const terminarIntento = diagnostico?.beginResume();
-            // Se devuelve la promesa para que el botón de prueba espere el resultado.
-            return contexto.resume().then(() => {
-                terminarIntento?.();
-                iniciarAmbiente();
-            }).catch((error) => {
-                terminarIntento?.(error);
-                console.warn('No se pudo habilitar el audio; se reintentará en el próximo toque.', error);
-            });
+            return contexto.resume().then(iniciarAmbiente);
         };
 
-        // CAMBIO AUDIO iOS v4: escuchar también el INICIO del contacto.
-        // Safari puede no aceptar touchend después de un arrastre como clic.
-        // La captura se ejecuta antes del joystick y de los controles de cámara.
-        // No se cancelan eventos ni se modifica la navegación.
-        // Se mantienen los eventos para reintentar si Safari interrumpe el audio
-        // al bloquear el teléfono o al volver desde otra pestaña.
-        this._habilitarAudio = habilitarAudio;
+        // Capturar el gesto antes de que los controles cancelen su propagación.
+        // También permite reanudar el audio después de una interrupción.
+        const habilitarConGesto = () => {
+            habilitarAudio().catch(error => {
+                console.warn('No se pudo habilitar el audio.', error);
+            });
+        };
         for (const evento of ['touchstart', 'pointerdown', 'mousedown', 'pointerup', 'touchend', 'click', 'keydown']) {
-            window.addEventListener(evento, habilitarAudio, {capture: true, passive: true});
+            window.addEventListener(evento, habilitarConGesto, {capture: true, passive: true});
         }
         contexto.addEventListener('statechange', () => {
             if (contexto.state !== 'running') activadoDesdeGesto = false;
             iniciarAmbiente();
         });
-        // Los eventos normales ya están instalados: retirar solo la captura
-        // temprana para no mantener dos habilitadores en paralelo.
         arranque?.finalizar();
 
-        // DIAGNÓSTICO AUDIO v6: el panel observa el mismo contexto y sonidos.
-        diagnostico?.attach({
-            context: contexto,
-            listener,
-            sounds: {
-                Ambiente: this._audioAmbiente,
-                Spawn: this._audioProximidad,
-                Despawn: this._audioDesaparece,
-            },
-            unlock: habilitarAudio,
-        });
-
         const audioLoader = new THREE.AudioLoader();
-        const progreso = (nombre) => (evento) => {
-            const detalle = evento.total > 0
-                ? `${Math.round(evento.loaded / evento.total * 100)}%`
-                : `${Math.round(evento.loaded / 1024)} KB`;
-            diagnostico?.file(nombre, `descargando ${detalle}; falta decodificar`);
+        const cargarAudio = (nombre, audio, alCargar) => {
+            audioLoader.load('../Sonidos/' + nombre, buffer => {
+                audio.setBuffer(buffer);
+                // NIVELES: ganancia unitaria (0 dB). Los WAV se normalizan
+                // fuera de la app; el código no los atenúa ni los amplifica.
+                audio.setVolume(1);
+                if (alCargar) alCargar();
+            }, undefined, error => {
+                console.error('No se pudo cargar ' + nombre + '.', error);
+            });
         };
-        const listo = (nombre, buffer) => {
-            diagnostico?.file(nombre, `listo; ${buffer.duration.toFixed(1)} s, ${buffer.numberOfChannels} canales`);
-        };
-        const fallo = (nombre) => (error) => {
-            const detalle = error?.message || `error de red/decodificación (${error?.type || 'sin detalle'})`;
-            diagnostico?.file(nombre, `ERROR: ${detalle}`);
-            diagnostico?.log(`Falló ${nombre}: ${detalle}`);
-            console.error(`No se pudo cargar ${nombre}.`, error);
-        };
-        diagnostico?.file('Ambiente.wav', 'descargando');
-        audioLoader.load('../Sonidos/Ambiente.wav', (buffer) => {
-            this._audioAmbiente.setBuffer(buffer);
+        cargarAudio('Ambiente.wav', this._audioAmbiente, () => {
             this._audioAmbiente.setLoop(true);
-            this._audioAmbiente.setVolume(0.8);
-            listo('Ambiente.wav', buffer);
             iniciarAmbiente();
-        }, progreso('Ambiente.wav'), fallo('Ambiente.wav'));
-
-        diagnostico?.file('SpawnFotos.wav', 'descargando');
-        audioLoader.load('../Sonidos/SpawnFotos.wav', (buffer) => {
-            this._audioProximidad.setBuffer(buffer);
-            this._audioProximidad.setVolume(0.8);
-            listo('SpawnFotos.wav', buffer);
-        }, progreso('SpawnFotos.wav'), fallo('SpawnFotos.wav'));
-
-        diagnostico?.file('DespawnFotos.wav', 'descargando');
-        audioLoader.load('../Sonidos/DespawnFotos.wav', (buffer) => {
-            this._audioDesaparece.setBuffer(buffer);
-            this._audioDesaparece.setVolume(0.8);
-            listo('DespawnFotos.wav', buffer);
-        }, progreso('DespawnFotos.wav'), fallo('DespawnFotos.wav'));
-
+        });
+        cargarAudio('SpawnFotos.wav', this._audioProximidad);
+        cargarAudio('DespawnFotos.wav', this._audioDesaparece);
         this._estabaCerca = false;
     }
 
