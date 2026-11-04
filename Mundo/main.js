@@ -521,7 +521,7 @@ class ProceduralTerrain_Demo extends game.Game {
         setTimeout(() => {
             if (zonaEl) {
                 zonaEl.style.transition = "opacity 1s ease";
-                zonaEl.style.opacity = "0";
+                zonaEl.style.opacity = "100";
             }
         }, 15000);
     }
