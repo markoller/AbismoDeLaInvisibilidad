@@ -845,12 +845,12 @@ class ProceduralTerrain_Demo extends game.Game {
                 console.error('No se pudo cargar ' + nombre + '.', error);
             });
         };
-        cargarAudio('../Sonidos/Ambiente.wav', this._audioAmbiente, () => {
+        cargarAudio('../Sonidos/Ambiente.mp3', this._audioAmbiente, () => {
             this._audioAmbiente.setLoop(true);
             iniciarAmbiente();
         });
-        cargarAudio('SpawnFotos.wav', this._audioProximidad);
-        cargarAudio('DespawnFotos.wav', this._audioDesaparece);
+        cargarAudio('SpawnFotos.mp3', this._audioProximidad);
+        cargarAudio('DespawnFotos.mp3', this._audioDesaparece);
         this._estabaCerca = false;
     }
 
