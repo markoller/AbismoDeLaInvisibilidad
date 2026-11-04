@@ -388,7 +388,7 @@ class ProceduralTerrain_Demo extends game.Game {
         );
 
         controls.enableZoom = false;
-        controls.minDistance = 5;
+        controls.minDistance = 20;
         controls.maxDistance = 20;
         controls.enableDamping = true;
         controls.dampingFactor = 0.1;
@@ -576,6 +576,8 @@ class ProceduralTerrain_Demo extends game.Game {
 
                 this._graphics._camera.position.lerp(posIdeal, 4.0 * timeInSeconds);
             }
+            //if (this._graphics._camera.position.distanceTo(targetPos) < 18){
+            //}
         }
 
         this._controls.update();
