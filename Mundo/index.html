@@ -140,6 +140,16 @@
 </head>
 <body>
     <div id="joystickZona"></div>
+    <button id="botonSonido" type="button" aria-label="Desactivar sonido" aria-pressed="false" title="Sonido">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 9v6h4l5 4V5L7 9H3z" fill="currentColor"/>
+            <g class="ondas" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M15.5 8.5a5 5 0 0 1 0 7"/>
+                <path d="M18.5 5.5a9 9 0 0 1 0 13"/>
+            </g>
+            <path class="tachado" d="M16 9l6 6M22 9l-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+    </button>
     <div id="error"></div>
     <div id="target"></div>
     <script type="module" src="main.js?audio=publicacion-3"></script>

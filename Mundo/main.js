@@ -717,8 +717,48 @@ class ProceduralTerrain_Demo extends game.Game {
         if (arranque?.contexto) THREE.AudioContext.setContext(arranque.contexto);
         const listener = new THREE.AudioListener();
         this._graphics._camera.add(listener);
-        listener.setMasterVolume(1);
         const contexto = listener.context;
+
+        // BOTÓN DE SONIDO: activa / desactiva todo el audio (volumen general).
+        // La preferencia se recuerda entre visitas.
+        const boton = document.getElementById('botonSonido');
+        let sonidoActivo = true;
+        try {
+            sonidoActivo = localStorage.getItem('abismoSonido') !== 'off';
+        } catch (error) {
+            // Almacenamiento no disponible: se usa el valor por defecto.
+        }
+        const aplicarVolumen = () => {
+            listener.setMasterVolume(sonidoActivo ? 1 : 0);
+        };
+        const actualizarBoton = () => {
+            if (!boton) return;
+            boton.classList.toggle('silenciado', !sonidoActivo);
+            boton.setAttribute('aria-pressed', String(!sonidoActivo));
+            boton.setAttribute('aria-label', sonidoActivo ? 'Desactivar sonido' : 'Activar sonido');
+            boton.title = sonidoActivo ? 'Desactivar sonido' : 'Activar sonido';
+        };
+        if (boton) {
+            boton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                sonidoActivo = !sonidoActivo;
+                try {
+                    localStorage.setItem('abismoSonido', sonidoActivo ? 'on' : 'off');
+                } catch (error) {
+                    // Si no se puede guardar, igual funciona durante la sesión.
+                }
+                aplicarVolumen();
+                actualizarBoton();
+            });
+            // Evitar que tocar el botón mueva la cámara / el pez.
+            for (const evento of ['pointerdown', 'pointerup', 'mousedown', 'touchstart']) {
+                boton.addEventListener(evento, (e) => e.stopPropagation(), {passive: true});
+            }
+            // Evitar que Espacio/Enter sobre el botón active también el juego.
+            boton.addEventListener('keydown', (e) => e.stopPropagation());
+        }
+        actualizarBoton();
+        aplicarVolumen();
         const muestraSilenciosa = contexto.createBuffer(1, 1, contexto.sampleRate);
         let activadoDesdeGesto = false;
         let fuenteActivacion = null;
@@ -741,7 +781,7 @@ class ProceduralTerrain_Demo extends game.Game {
             if (contexto.state === 'closed') {
                 return Promise.reject(new Error('El contexto de audio está cerrado.'));
             }
-            listener.setMasterVolume(1);
+            aplicarVolumen();
             if (contexto.state === 'running' && activadoDesdeGesto) {
                 iniciarAmbiente();
                 return Promise.resolve();
