@@ -849,8 +849,8 @@ class ProceduralTerrain_Demo extends game.Game {
             this._audioAmbiente.setLoop(true);
             iniciarAmbiente();
         });
-        cargarAudio('SpawnFotos.mp3', this._audioProximidad);
-        cargarAudio('DespawnFotos.mp3', this._audioDesaparece);
+        cargarAudio('SpawnFotos.wav', this._audioProximidad);
+        cargarAudio('DespawnFotos.wav', this._audioDesaparece);
         this._estabaCerca = false;
     }
 
