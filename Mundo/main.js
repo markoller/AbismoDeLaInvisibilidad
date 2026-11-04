@@ -461,10 +461,14 @@ class ProceduralTerrain_Demo extends game.Game {
         if (!zonaEl) return;
 
         const checkMobileAndToggle = () => {
-            const isMobileCurrent = window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 600;
+            let details = navigator.userAgent;
+            let regexp = /android|iphone|kindle|ipad/i;
+            let isMobileDevice = regexp.test(details);
+            const isMobileCurrent = isMobileDevice;//window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 600;
             
             if (!isMobileCurrent) {
                 zonaEl.style.display = "none";
+                //Aca armar teclado para que se vea en desktop
                 return;
             }
             
