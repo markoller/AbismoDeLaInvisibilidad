@@ -726,7 +726,7 @@ class ProceduralTerrain_Demo extends game.Game {
         // BOTÓN DE SONIDO: activa / desactiva todo el audio (volumen general).
         // La preferencia se recuerda entre visitas.
         const boton = document.getElementById('botonSonido');
-        let sonidoActivo = true;
+        let sonidoActivo = false;
         try {
             sonidoActivo = localStorage.getItem('abismoSonido') !== 'off';
         } catch (error) {
